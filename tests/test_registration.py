@@ -5,7 +5,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.core.security import hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    hash_password,
+    verify_access_token,
+    verify_password,
+)
 from app.db_session import get_db
 from app.main import app
 from app.models import Base
@@ -124,12 +129,8 @@ def test_login_user_successfully(client):
 
     assert register_response.status_code == 201
     assert login_response.status_code == 200
-    assert login_response.json()["message"] == (
-        "Credentials verified successfully."
-    )
-    assert login_response.json()["user_id"] == (
-        register_response.json()["id"]
-    )
+    assert login_response.json()["access_token"]
+    assert login_response.json()["token_type"] == "bearer"
 
 def test_login_user_with_wrong_password(client):
     client.post(
@@ -163,3 +164,52 @@ def test_login_user_with_unknown_email(client):
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid email or password."
+
+def test_access_token_returns_correct_user_id():
+    token = create_access_token(123)
+
+    user_id = verify_access_token(token)
+
+    assert user_id == 123
+
+def test_invalid_access_token_returns_none():
+    user_id = verify_access_token("invalid.token.value")
+
+    assert user_id is None
+
+def test_profile_requires_authentication(client):
+    response = client.get("/auth/me")
+
+    assert response.status_code == 401
+
+def test_profile_with_valid_token(client):
+    user_data = {
+        "full_name": "Token Test User",
+        "email": "token-test@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+
+    response = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert register_response.status_code == 201
+    assert response.status_code == 200
+    assert response.json()["user_id"] == user_id
+
+def test_profile_with_invalid_token_returns_401(client):
+    response = client.get(
+        "/auth/me",
+        headers={"Authorization": "Bearer invalid.token.value"},
+    )
+
+    assert response.status_code == 401

@@ -3,7 +3,12 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    get_current_user_id,
+    hash_password,
+    verify_password,
+)
 from app.database import check_database_connection
 from app.db_session import get_db
 from app.models import User
@@ -98,7 +103,15 @@ def login_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    access_token = create_access_token(user.id)
+
     return {
-        "message": "Credentials verified successfully.",
-        "user_id": user.id,
+        "access_token": access_token,
+        "token_type": "bearer",
     }
+
+@app.get("/auth/me")
+def get_my_profile(
+    user_id: int = Depends(get_current_user_id),
+):
+    return {"user_id": user_id}
