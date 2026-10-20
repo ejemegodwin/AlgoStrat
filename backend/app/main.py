@@ -3,11 +3,11 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 from app.database import check_database_connection
 from app.db_session import get_db
 from app.models import User
-from app.schemas import UserCreate, UserResponse
+from app.schemas import UserCreate, UserLogin, UserResponse
 
 app = FastAPI(title="AlgoStrat API")
 
@@ -21,6 +21,7 @@ def home():
 
 
 @app.get("/health/database")
+
 def database_health():
     try:
         result = check_database_connection()
@@ -40,6 +41,7 @@ def database_health():
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
+
 def register_user(
     user_data: UserCreate,
     db: Session = Depends(get_db),
@@ -74,3 +76,29 @@ def register_user(
         )
 
     return user
+
+@app.post("/auth/login")
+def login_user(
+    login_data: UserLogin,
+    db: Session = Depends(get_db),
+):
+    user = (
+        db.query(User)
+        .filter(User.email == str(login_data.email))
+        .first()
+    )
+
+    if user is None or not verify_password(
+        login_data.password,
+        user.password_hash,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return {
+        "message": "Credentials verified successfully.",
+        "user_id": user.id,
+    }

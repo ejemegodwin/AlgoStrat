@@ -100,3 +100,66 @@ def test_register_user_with_short_password(client):
     )
 
     assert response.status_code == 422
+
+
+def test_login_user_successfully(client):
+    user_data = {
+        "full_name": "Login Test User",
+        "email": "login@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": user_data["email"],
+            "password": user_data["password"],
+        },
+    )
+
+    assert register_response.status_code == 201
+    assert login_response.status_code == 200
+    assert login_response.json()["message"] == (
+        "Credentials verified successfully."
+    )
+    assert login_response.json()["user_id"] == (
+        register_response.json()["id"]
+    )
+
+def test_login_user_with_wrong_password(client):
+    client.post(
+        "/auth/register",
+        json={
+            "full_name": "Wrong Password User",
+            "email": "wrongpass@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": "wrongpass@example.com",
+            "password": "WrongPass123!",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid email or password."
+
+def test_login_user_with_unknown_email(client):
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": "unknown@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid email or password."
