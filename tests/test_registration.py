@@ -346,3 +346,91 @@ def test_get_nonexistent_job_returns_404(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Job not found."
+
+def test_close_own_job_successfully(client):
+    user_data = {
+        "full_name": "Job Owner User",
+        "email": "jobowner@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+
+    create_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Build an online store",
+            "description": "Create an online store for a small business.",
+            "budget": "1000.00",
+            "currency": "USD",
+        },
+    )
+    job_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/jobs/{job_id}/close",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == job_id
+    assert response.json()["status"] == "closed"
+
+def test_user_cannot_close_another_users_job(client):
+    owner_data = {
+        "full_name": "Original Job Owner",
+        "email": "originalowner@example.com",
+        "password": "SecurePass123!",
+    }
+
+    owner_response = client.post(
+        "/auth/register",
+        json=owner_data,
+    )
+    owner_id = owner_response.json()["id"]
+    owner_token = create_access_token(owner_id)
+
+    create_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a mobile application",
+            "description": "Create a mobile application for customers.",
+            "budget": "1500.00",
+            "currency": "USD",
+        },
+    )
+    job_id = create_response.json()["id"]
+
+    other_user_data = {
+        "full_name": "Another User",
+        "email": "anotheruser@example.com",
+        "password": "SecurePass123!",
+    }
+
+    other_user_response = client.post(
+        "/auth/register",
+        json=other_user_data,
+    )
+    other_user_id = other_user_response.json()["id"]
+    other_user_token = create_access_token(other_user_id)
+
+    response = client.patch(
+        f"/jobs/{job_id}/close",
+        headers={"Authorization": f"Bearer {other_user_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You can only close your own jobs."
+
+
+def test_close_job_requires_authentication(client):
+    response = client.patch("/jobs/1/close")
+
+    assert response.status_code == 401

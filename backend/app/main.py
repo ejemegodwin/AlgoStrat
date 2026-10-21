@@ -177,3 +177,30 @@ def get_job(
         )
 
     return job
+
+
+@app.patch("/jobs/{job_id}/close", response_model=JobResponse)
+def close_job(
+    job_id: int,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    job = db.query(Job).filter(Job.id == job_id).first()
+
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found.",
+        )
+
+    if job.customer_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only close your own jobs.",
+        )
+
+    job.status = "closed"
+    db.commit()
+    db.refresh(job)
+
+    return job
