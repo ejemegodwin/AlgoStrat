@@ -38,3 +38,10 @@ class JobResponse(BaseModel):
     budget: Decimal | None
     currency: str
     status: str
+
+
+class JobUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=3, max_length=150)
+    description: str | None = Field(default=None, min_length=10)
+    budget: Decimal | None = Field(default=None, gt=0)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)

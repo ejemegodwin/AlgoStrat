@@ -12,7 +12,14 @@ from app.core.security import (
 from app.database import check_database_connection
 from app.db_session import get_db
 from app.models import Job, User
-from app.schemas import JobCreate, JobResponse, UserCreate, UserLogin, UserResponse
+from app.schemas import (
+    JobCreate,
+    JobResponse,
+    JobUpdate,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+)
 
 app = FastAPI(title="AlgoStrat API")
 
@@ -200,6 +207,57 @@ def close_job(
         )
 
     job.status = "closed"
+    db.commit()
+    db.refresh(job)
+
+    return job
+
+
+@app.patch("/jobs/{job_id}", response_model=JobResponse)
+def update_job(
+    job_id: int,
+    job_data: JobUpdate,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    job = db.query(Job).filter(Job.id == job_id).first()
+
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found.",
+        )
+
+    if job.customer_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only edit your own jobs.",
+        )
+
+    if job.status != "open":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You can only edit open jobs.",
+        )
+
+    update_data = job_data.model_dump(exclude_unset=True)
+
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide at least one field to update.",
+        )
+
+    for field, value in update_data.items():
+        if value is None and field != "budget":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"{field} cannot be null.",
+            )
+
+    for field, value in update_data.items():
+        setattr(job, field, value)
+
     db.commit()
     db.refresh(job)
 

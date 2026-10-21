@@ -434,3 +434,164 @@ def test_close_job_requires_authentication(client):
     response = client.patch("/jobs/1/close")
 
     assert response.status_code == 401
+
+def test_update_own_job_successfully(client):
+    user_data = {
+        "full_name": "Job Editor",
+        "email": "jobeditor@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+
+    create_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Build an online store",
+            "description": "Create an online store for a small business.",
+            "budget": "1000.00",
+            "currency": "USD",
+        },
+    )
+    job_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/jobs/{job_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"budget": "2000.00"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["budget"] == "2000.00"
+    assert response.json()["title"] == "Build an online store"
+
+def test_user_cannot_update_another_users_job(client):
+    owner_data = {
+        "full_name": "Original Job Owner",
+        "email": "editowner@example.com",
+        "password": "SecurePass123!",
+    }
+
+    owner_response = client.post(
+        "/auth/register",
+        json=owner_data,
+    )
+    owner_id = owner_response.json()["id"]
+    owner_token = create_access_token(owner_id)
+
+    create_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a website",
+            "description": "Create a website for a small business.",
+            "budget": "1000.00",
+            "currency": "USD",
+        },
+    )
+    job_id = create_response.json()["id"]
+
+    other_user_data = {
+        "full_name": "Another User",
+        "email": "editother@example.com",
+        "password": "SecurePass123!",
+    }
+
+    other_response = client.post(
+        "/auth/register",
+        json=other_user_data,
+    )
+    other_id = other_response.json()["id"]
+    other_token = create_access_token(other_id)
+
+    response = client.patch(
+        f"/jobs/{job_id}",
+        headers={"Authorization": f"Bearer {other_token}"},
+        json={"budget": "5000.00"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You can only edit your own jobs."
+
+def test_cannot_update_closed_job(client):
+    user_data = {
+        "full_name": "Closed Job Owner",
+        "email": "closedjobowner@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post(
+        "/jobs",
+        headers=headers,
+        json={
+            "title": "Build a portfolio website",
+            "description": "Create a professional portfolio website.",
+            "budget": "1000.00",
+            "currency": "USD",
+        },
+    )
+    job_id = create_response.json()["id"]
+
+    close_response = client.patch(
+        f"/jobs/{job_id}/close",
+        headers=headers,
+    )
+    assert close_response.status_code == 200
+
+    response = client.patch(
+        f"/jobs/{job_id}",
+        headers=headers,
+        json={"budget": "2000.00"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "You can only edit open jobs."
+
+def test_update_job_rejects_empty_request(client):
+    user_data = {
+        "full_name": "Empty Update User",
+        "email": "emptyupdate@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+
+    create_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Build a website",
+            "description": "Create a website for a small business.",
+            "budget": "1000.00",
+            "currency": "USD",
+        },
+    )
+    job_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/jobs/{job_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Provide at least one field to update."
