@@ -204,7 +204,10 @@ def test_profile_with_valid_token(client):
 
     assert register_response.status_code == 201
     assert response.status_code == 200
-    assert response.json()["user_id"] == user_id
+    assert response.json()["id"] == user_id
+    assert response.json()["full_name"] == user_data["full_name"]
+    assert response.json()["email"] == user_data["email"]
+    assert response.json()["account_type"] == "individual"
 
 def test_profile_with_invalid_token_returns_401(client):
     response = client.get(

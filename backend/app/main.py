@@ -110,8 +110,17 @@ def login_user(
         "token_type": "bearer",
     }
 
-@app.get("/auth/me")
+@app.get("/auth/me", response_model=UserResponse)
 def get_my_profile(
     user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
 ):
-    return {"user_id": user_id}
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User no longer exists.",
+        )
+
+    return user
