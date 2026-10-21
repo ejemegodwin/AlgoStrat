@@ -11,8 +11,8 @@ from app.core.security import (
 )
 from app.database import check_database_connection
 from app.db_session import get_db
-from app.models import User
-from app.schemas import UserCreate, UserLogin, UserResponse
+from app.models import Job, User
+from app.schemas import JobCreate, JobResponse, UserCreate, UserLogin, UserResponse
 
 app = FastAPI(title="AlgoStrat API")
 
@@ -124,3 +124,40 @@ def get_my_profile(
         )
 
     return user
+
+
+@app.post(
+    "/jobs",
+    response_model=JobResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_job(
+    job_data: JobCreate,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    job = Job(
+        customer_id=user_id,
+        title=job_data.title,
+        description=job_data.description,
+        budget=job_data.budget,
+        currency=job_data.currency.upper(),
+    )
+
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    return job
+
+
+@app.get("/jobs", response_model=list[JobResponse])
+def list_jobs(db: Session = Depends(get_db)):
+    jobs = (
+        db.query(Job)
+        .filter(Job.status == "open")
+        .order_by(Job.created_at.desc())
+        .all()
+    )
+
+    return jobs

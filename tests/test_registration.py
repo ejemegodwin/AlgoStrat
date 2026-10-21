@@ -227,3 +227,82 @@ def test_profile_with_nonexistent_user_token_returns_401(client):
 
     assert response.status_code == 401
     assert response.json()["detail"] == "User no longer exists."
+
+
+def test_create_job_successfully(client):
+    user_data = {
+        "full_name": "Job Test User",
+        "email": "jobtest@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+
+    response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Build a website",
+            "description": "Create a professional business website.",
+            "budget": "500.00",
+            "currency": "usd",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["customer_id"] == user_id
+    assert response.json()["title"] == "Build a website"
+    assert response.json()["budget"] == "500.00"
+    assert response.json()["currency"] == "USD"
+    assert response.json()["status"] == "open"
+
+
+def test_create_job_requires_authentication(client):
+    response = client.post(
+        "/jobs",
+        json={
+            "title": "Build a website",
+            "description": "Create a professional business website.",
+            "budget": "500.00",
+            "currency": "USD",
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_list_jobs_successfully(client):
+    user_data = {
+        "full_name": "Job Listing User",
+        "email": "joblisting@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+
+    client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Build a portfolio",
+            "description": "Create a professional developer portfolio.",
+            "budget": "300.00",
+            "currency": "USD",
+        },
+    )
+
+    response = client.get("/jobs")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["title"] == "Build a portfolio"
