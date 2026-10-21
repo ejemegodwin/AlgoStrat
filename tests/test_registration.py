@@ -213,3 +213,14 @@ def test_profile_with_invalid_token_returns_401(client):
     )
 
     assert response.status_code == 401
+
+def test_profile_with_nonexistent_user_token_returns_401(client):
+    token = create_access_token(999999)
+
+    response = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "User no longer exists."
