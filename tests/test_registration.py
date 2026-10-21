@@ -306,3 +306,43 @@ def test_list_jobs_successfully(client):
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["title"] == "Build a portfolio"
+
+def test_get_job_successfully(client):
+    user_data = {
+        "full_name": "Job Details User",
+        "email": "jobdetails@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+
+    create_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Build an API",
+            "description": "Develop a REST API for a business.",
+            "budget": "750.00",
+            "currency": "USD",
+        },
+    )
+    job_id = create_response.json()["id"]
+
+    response = client.get(f"/jobs/{job_id}")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == job_id
+    assert response.json()["title"] == "Build an API"
+    assert response.json()["customer_id"] == user_id
+
+
+def test_get_nonexistent_job_returns_404(client):
+    response = client.get("/jobs/99999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Job not found."
