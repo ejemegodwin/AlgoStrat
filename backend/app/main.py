@@ -166,11 +166,29 @@ def create_job(
 
 
 @app.get("/jobs", response_model=list[JobResponse])
-def list_jobs(db: Session = Depends(get_db)):
+def list_jobs(
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    if limit < 1 or limit > 100:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Limit must be between 1 and 100.",
+        )
+
+    if offset < 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Offset cannot be negative.",
+        )
+
     jobs = (
         db.query(Job)
         .filter(Job.status == "open")
-        .order_by(Job.created_at.desc())
+        .order_by(Job.created_at.desc(), Job.id.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 

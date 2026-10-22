@@ -721,6 +721,7 @@ def test_update_job_database_failure_returns_generic_error(
     )
     assert "Sensitive database details" not in response.text
 
+
 def test_close_job_database_failure_returns_generic_error(
     client, monkeypatch
 ):
@@ -770,3 +771,62 @@ def test_close_job_database_failure_returns_generic_error(
         "Unable to close job right now. Please try again later."
     )
     assert "Sensitive database details" not in response.text
+
+
+def test_list_jobs_supports_pagination(client):
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Pagination User",
+            "email": "pagination@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    job_titles = [
+        "Build a portfolio",
+        "Develop an API",
+        "Create a mobile app",
+    ]
+
+    created_job_ids = []
+
+    for title in job_titles:
+        response = client.post(
+            "/jobs",
+            headers=headers,
+            json={
+                "title": title,
+                "description": "Complete this professional development project.",
+                "budget": "500.00",
+                "currency": "USD",
+            },
+        )
+        assert response.status_code == 201
+        created_job_ids.append(response.json()["id"])
+
+    response = client.get("/jobs?limit=2&offset=1")
+
+    assert response.status_code == 200
+    jobs = response.json()
+    assert len(jobs) == 2
+    assert [job["id"] for job in jobs] == [
+        created_job_ids[1],
+        created_job_ids[0],
+    ]
+
+def test_list_jobs_rejects_invalid_limit(client):
+    response = client.get("/jobs?limit=101")
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Limit must be between 1 and 100."
+
+
+def test_list_jobs_rejects_negative_offset(client):
+    response = client.get("/jobs?offset=-1")
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Offset cannot be negative."
