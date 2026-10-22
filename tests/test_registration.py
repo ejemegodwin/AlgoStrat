@@ -595,3 +595,39 @@ def test_update_job_rejects_empty_request(client):
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Provide at least one field to update."
+
+
+def test_update_job_rejects_null_title(client):
+    user_data = {
+        "full_name": "Null Title User",
+        "email": "nulltitle@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+
+    create_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Build a website",
+            "description": "Create a website for a small business.",
+            "budget": "1000.00",
+            "currency": "USD",
+        },
+    )
+    job_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/jobs/{job_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": None},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "title cannot be null."
