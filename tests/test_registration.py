@@ -298,6 +298,8 @@ def test_list_jobs_successfully(client):
             "description": "Create a professional developer portfolio.",
             "budget": "300.00",
             "currency": "USD",
+            "category": "Web Development",
+            "location": "Lagos, Nigeria",
         },
     )
 
@@ -306,6 +308,8 @@ def test_list_jobs_successfully(client):
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["title"] == "Build a portfolio"
+    assert response.json()[0]["category"] == "Web Development"
+    assert response.json()[0]["location"] == "Lagos, Nigeria"
 
 def test_get_job_successfully(client):
     user_data = {
@@ -980,3 +984,91 @@ def test_list_jobs_rejects_invalid_budget_filters(client):
     for query in invalid_queries:
         response = client.get(query)
         assert response.status_code == 422
+
+
+def test_list_jobs_filters_by_category(client):
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Category Search User",
+            "email": "categorysearch@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    jobs_to_create = [
+        {
+            "title": "Build a Python API",
+            "description": "Create a backend service.",
+            "category": "Web Development",
+            "location": "Lagos, Nigeria",
+        },
+        {
+            "title": "Design a company logo",
+            "description": "Create a visual brand identity.",
+            "category": "Graphic Design",
+            "location": "Abuja, Nigeria",
+        },
+    ]
+
+    for job_data in jobs_to_create:
+        response = client.post(
+            "/jobs",
+            headers=headers,
+            json=job_data,
+        )
+        assert response.status_code == 201
+
+    response = client.get("/jobs?category=web")
+
+    assert response.status_code == 200
+    jobs = response.json()
+    assert len(jobs) == 1
+    assert jobs[0]["category"] == "Web Development"
+
+
+def test_list_jobs_filters_by_location(client):
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Location Search User",
+            "email": "locationsearch@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    jobs_to_create = [
+        {
+            "title": "Build a Python API",
+            "description": "Create a backend service.",
+            "category": "Web Development",
+            "location": "Lagos, Nigeria",
+        },
+        {
+            "title": "Design a company logo",
+            "description": "Create a visual brand identity.",
+            "category": "Graphic Design",
+            "location": "Abuja, Nigeria",
+        },
+    ]
+
+    for job_data in jobs_to_create:
+        response = client.post(
+            "/jobs",
+            headers=headers,
+            json=job_data,
+        )
+        assert response.status_code == 201
+
+    response = client.get("/jobs?location=lagos")
+
+    assert response.status_code == 200
+    jobs = response.json()
+    assert len(jobs) == 1
+    assert jobs[0]["location"] == "Lagos, Nigeria"

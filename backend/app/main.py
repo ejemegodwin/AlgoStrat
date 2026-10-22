@@ -148,6 +148,8 @@ def create_job(
         customer_id=user_id,
         title=job_data.title,
         description=job_data.description,
+        category=job_data.category,
+        location=job_data.location,
         budget=job_data.budget,
         currency=job_data.currency.upper(),
     )
@@ -170,6 +172,8 @@ def create_job(
 def list_jobs(
     keyword: str | None = None,
     currency: str | None = None,
+    category: str | None = None,
+    location: str | None = None,
     min_budget: Decimal | None = None,
     max_budget: Decimal | None = None,
     limit: int = 20,
@@ -221,6 +225,16 @@ def list_jobs(
 
     if currency:
         query = query.filter(Job.currency == currency.strip().upper())
+
+    if category and category.strip():
+        query = query.filter(
+            Job.category.ilike(f"%{category.strip()}%")
+        )
+
+    if location and location.strip():
+        query = query.filter(
+            Job.location.ilike(f"%{location.strip()}%")
+        )
 
     if min_budget is not None:
         query = query.filter(Job.budget >= min_budget)

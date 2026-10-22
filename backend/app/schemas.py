@@ -26,6 +26,8 @@ class JobCreate(BaseModel):
     description: str = Field(min_length=10)
     budget: Decimal | None = Field(default=None, gt=0)
     currency: str = Field(default="USD", min_length=3, max_length=3)
+    category: str | None = Field(default=None, max_length=50)
+    location: str | None = Field(default=None, max_length=120)
 
 
 class JobResponse(BaseModel):
@@ -38,6 +40,8 @@ class JobResponse(BaseModel):
     budget: Decimal | None
     currency: str
     status: str
+    category: str | None
+    location: str | None
 
 
 class JobUpdate(BaseModel):
@@ -45,3 +49,5 @@ class JobUpdate(BaseModel):
     description: str | None = Field(default=None, min_length=10)
     budget: Decimal | None = Field(default=None, gt=0)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
+    category: str | None = Field(default=None, max_length=50)
+    location: str | None = Field(default=None, max_length=120)
