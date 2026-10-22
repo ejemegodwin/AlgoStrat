@@ -251,7 +251,7 @@ def update_job(
     for field, value in update_data.items():
         if value is None and field != "budget":
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"{field} cannot be null.",
             )
 
