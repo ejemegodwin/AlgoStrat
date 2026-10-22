@@ -631,3 +631,41 @@ def test_update_job_rejects_null_title(client):
 
     assert response.status_code == 422
     assert response.json()["detail"] == "title cannot be null."
+
+
+def test_create_job_database_failure_returns_generic_error(client, monkeypatch):
+    from sqlalchemy.exc import SQLAlchemyError
+    from sqlalchemy.orm import Session
+
+    user_data = {
+        "full_name": "Database Failure User",
+        "email": "dbfailure@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post("/auth/register", json=user_data)
+    assert register_response.status_code == 201
+
+    token = create_access_token(register_response.json()["id"])
+
+    def fail_commit(self):
+        raise SQLAlchemyError("Sensitive database details")
+
+    monkeypatch.setattr(Session, "commit", fail_commit)
+
+    response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Build a website",
+            "description": "Create a professional business website.",
+            "budget": "500.00",
+            "currency": "USD",
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Unable to create job right now. Please try again later."
+    )
+    assert "Sensitive database details" not in response.text

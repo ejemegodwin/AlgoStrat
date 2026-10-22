@@ -151,9 +151,16 @@ def create_job(
         currency=job_data.currency.upper(),
     )
 
-    db.add(job)
-    db.commit()
-    db.refresh(job)
+    try:
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to create job right now. Please try again later.",
+        ) from exc
 
     return job
 
