@@ -720,3 +720,53 @@ def test_update_job_database_failure_returns_generic_error(
         "Unable to update job right now. Please try again later."
     )
     assert "Sensitive database details" not in response.text
+
+def test_close_job_database_failure_returns_generic_error(
+    client, monkeypatch
+):
+    from sqlalchemy.exc import SQLAlchemyError
+    from sqlalchemy.orm import Session
+
+    user_data = {
+        "full_name": "Close Failure User",
+        "email": "closefailure@example.com",
+        "password": "SecurePass123!",
+    }
+
+    register_response = client.post(
+        "/auth/register",
+        json=user_data,
+    )
+    assert register_response.status_code == 201
+
+    token = create_access_token(register_response.json()["id"])
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post(
+        "/jobs",
+        headers=headers,
+        json={
+            "title": "Build a website",
+            "description": "Create a professional business website.",
+            "budget": "500.00",
+            "currency": "USD",
+        },
+    )
+    assert create_response.status_code == 201
+    job_id = create_response.json()["id"]
+
+    def fail_commit(self):
+        raise SQLAlchemyError("Sensitive database details")
+
+    monkeypatch.setattr(Session, "commit", fail_commit)
+
+    response = client.patch(
+        f"/jobs/{job_id}/close",
+        headers=headers,
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Unable to close job right now. Please try again later."
+    )
+    assert "Sensitive database details" not in response.text
