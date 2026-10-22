@@ -1,3 +1,4 @@
+from decimal import Decimal
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -167,6 +168,10 @@ def create_job(
 
 @app.get("/jobs", response_model=list[JobResponse])
 def list_jobs(
+    keyword: str | None = None,
+    currency: str | None = None,
+    min_budget: Decimal | None = None,
+    max_budget: Decimal | None = None,
     limit: int = 20,
     offset: int = 0,
     db: Session = Depends(get_db),
@@ -183,9 +188,48 @@ def list_jobs(
             detail="Offset cannot be negative.",
         )
 
+    if min_budget is not None and min_budget < 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Minimum budget cannot be negative.",
+        )
+
+    if max_budget is not None and max_budget < 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Maximum budget cannot be negative.",
+        )
+
+    if (
+        min_budget is not None
+        and max_budget is not None
+        and min_budget > max_budget
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Minimum budget cannot exceed maximum budget.",
+        )
+
+    query = db.query(Job).filter(Job.status == "open")
+
+    if keyword and keyword.strip():
+        search_term = f"%{keyword.strip()}%"
+        query = query.filter(
+            Job.title.ilike(search_term)
+            | Job.description.ilike(search_term)
+        )
+
+    if currency:
+        query = query.filter(Job.currency == currency.strip().upper())
+
+    if min_budget is not None:
+        query = query.filter(Job.budget >= min_budget)
+
+    if max_budget is not None:
+        query = query.filter(Job.budget <= max_budget)
+
     jobs = (
-        db.query(Job)
-        .filter(Job.status == "open")
+        query
         .order_by(Job.created_at.desc(), Job.id.desc())
         .offset(offset)
         .limit(limit)

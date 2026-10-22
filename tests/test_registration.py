@@ -830,3 +830,153 @@ def test_list_jobs_rejects_negative_offset(client):
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Offset cannot be negative."
+
+
+def test_list_jobs_filters_by_keyword(client):
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Search User",
+            "email": "search@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    jobs_to_create = [
+        {
+            "title": "Build a Python API",
+            "description": "Create a backend service.",
+            "budget": "500.00",
+            "currency": "USD",
+        },
+        {
+            "title": "Design a company logo",
+            "description": "Create a visual brand identity.",
+            "budget": "200.00",
+            "currency": "USD",
+        },
+    ]
+
+    for job_data in jobs_to_create:
+        response = client.post(
+            "/jobs",
+            headers=headers,
+            json=job_data,
+        )
+        assert response.status_code == 201
+
+    response = client.get("/jobs?keyword=python")
+
+    assert response.status_code == 200
+    jobs = response.json()
+    assert len(jobs) == 1
+    assert jobs[0]["title"] == "Build a Python API"
+
+
+def test_list_jobs_filters_by_currency(client):
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Currency User",
+            "email": "currency@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    jobs_to_create = [
+        {
+            "title": "Build a Python API",
+            "description": "Create a backend service.",
+            "budget": "500.00",
+            "currency": "USD",
+        },
+        {
+            "title": "Build a business website",
+            "description": "Create a website for a business.",
+            "budget": "200000.00",
+            "currency": "NGN",
+        },
+    ]
+
+    for job_data in jobs_to_create:
+        response = client.post(
+            "/jobs",
+            headers=headers,
+            json=job_data,
+        )
+        assert response.status_code == 201
+
+    response = client.get("/jobs?currency=ngn")
+
+    assert response.status_code == 200
+    jobs = response.json()
+    assert len(jobs) == 1
+    assert jobs[0]["currency"] == "NGN"
+
+
+def test_list_jobs_filters_by_budget_range(client):
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Budget User",
+            "email": "budget@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    user_id = register_response.json()["id"]
+    token = create_access_token(user_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    jobs_to_create = [
+        {
+            "title": "Build a Python API",
+            "description": "Create a backend service.",
+            "budget": "500.00",
+            "currency": "USD",
+        },
+        {
+            "title": "Design a company logo",
+            "description": "Create a visual brand identity.",
+            "budget": "200.00",
+            "currency": "USD",
+        },
+        {
+            "title": "Build a business website",
+            "description": "Create a website for a business.",
+            "budget": "1500.00",
+            "currency": "USD",
+        },
+    ]
+
+    for job_data in jobs_to_create:
+        response = client.post(
+            "/jobs",
+            headers=headers,
+            json=job_data,
+        )
+        assert response.status_code == 201
+
+    response = client.get("/jobs?min_budget=300&max_budget=1000")
+
+    assert response.status_code == 200
+    jobs = response.json()
+    assert len(jobs) == 1
+    assert jobs[0]["title"] == "Build a Python API"
+
+
+def test_list_jobs_rejects_invalid_budget_filters(client):
+    invalid_queries = [
+        "/jobs?min_budget=-1",
+        "/jobs?max_budget=-1",
+        "/jobs?min_budget=1000&max_budget=500",
+    ]
+
+    for query in invalid_queries:
+        response = client.get(query)
+        assert response.status_code == 422
