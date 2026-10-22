@@ -265,7 +265,14 @@ def update_job(
     for field, value in update_data.items():
         setattr(job, field, value)
 
-    db.commit()
-    db.refresh(job)
+    try:
+        db.commit()
+        db.refresh(job)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to update job right now. Please try again later.",
+        ) from exc
 
     return job
