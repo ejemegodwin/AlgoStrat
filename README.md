@@ -52,6 +52,12 @@ Interactive API documentation is available at `/docs` when the FastAPI server is
 
 ## Getting Started
 
+### Prerequisites
+
+- Python 3.12 or compatible version
+- A PostgreSQL database (a hosted PostgreSQL service is supported)
+- Git
+
 ### 1. Clone the repository
 
 ```bash
@@ -68,23 +74,48 @@ source .venv/bin/activate
 
 ### 3. Install dependencies
 
-Install the project's Python dependencies using the repository's dependency file, if available.
+```bash
+pip install -r requirements.txt
+```
 
 ### 4. Configure environment variables
 
-Create a `.env` file based on `.env.example` and configure the required database connection and authentication secrets. Never commit real credentials or secret keys.
+Create your local environment file:
 
-### 5. Run database migrations
+```bash
+cp .env.example .env
+```
 
-Use the project's configured Alembic setup to apply database migrations.
+Edit `.env` and set the following values for your environment:
 
-### 6. Start the backend
+- `DATABASE_URL` — your PostgreSQL connection string
+- `JWT_SECRET_KEY` — a strong, randomly generated secret
+- `JWT_ALGORITHM` — the configured JWT signing algorithm
+- `ACCESS_TOKEN_EXPIRE_MINUTES` — access-token lifetime in minutes
+
+Keep `.env` private. Never commit database credentials or secret keys to Git.
+
+### 5. Apply database migrations
+
+```bash
+alembic upgrade head
+```
+
+Ensure your database connection is configured before running migrations.
+
+### 6. Start the API server
 
 ```bash
 uvicorn app.main:app --reload --app-dir backend
 ```
 
-Open `http://127.0.0.1:8000/docs` to explore the API.
+Open `http://127.0.0.1:8000/docs` to explore the interactive API documentation.
+
+### 7. Run the automated tests
+
+```bash
+PYTHONPATH=backend python -m pytest -v
+```
 
 ## Project Status
 
