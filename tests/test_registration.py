@@ -1305,3 +1305,179 @@ def test_applying_for_job_requires_authentication(client):
     )
 
     assert response.status_code == 401
+
+
+def test_job_owner_can_view_applications(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Application List Owner",
+            "email": "application-list-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_id = owner_response.json()["id"]
+    owner_token = create_access_token(owner_id)
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a Reporting Tool",
+            "description": "Build a reporting tool for a small business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    worker_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Application List Worker",
+            "email": "application-list-worker@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    worker_id = worker_response.json()["id"]
+    worker_token = create_access_token(worker_id)
+
+    application_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "cover_letter": (
+                "I have the skills and experience to build this tool."
+            ),
+        },
+    )
+    assert application_response.status_code == 201
+
+    response = client.get(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["job_id"] == job_id
+    assert response.json()[0]["applicant_id"] == worker_id
+    assert response.json()[0]["status"] == "pending"
+
+
+def test_user_cannot_view_another_users_job_applications(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Private Applications Owner",
+            "email": "private-applications-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a Private Dashboard",
+            "description": "Build a dashboard for internal business reports.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    other_user_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Unauthorized Viewer",
+            "email": "unauthorized-viewer@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    other_user_token = create_access_token(
+        other_user_response.json()["id"]
+    )
+
+    response = client.get(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {other_user_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == (
+        "You can only view applications for your own jobs."
+    )
+
+
+def test_viewing_job_applications_requires_authentication(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Authentication Owner",
+            "email": "view-applications-auth-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a Data Dashboard",
+            "description": "Build a dashboard for business data analysis.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    response = client.get(f"/jobs/{job_id}/applications")
+
+    assert response.status_code == 401
+
+
+def test_viewing_applications_for_nonexistent_job_returns_404(client):
+    user_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Missing Job Viewer",
+            "email": "missing-job-viewer@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    user_token = create_access_token(user_response.json()["id"])
+
+    response = client.get(
+        "/jobs/999999/applications",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Job not found."
+
+
+def test_job_owner_gets_empty_list_when_no_applications_exist(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "No Applications Owner",
+            "email": "no-applications-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Create a Simple Website",
+            "description": "Create a simple website for a small business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    response = client.get(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []

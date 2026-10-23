@@ -420,3 +420,39 @@ def apply_for_job(
         ) from exc
 
     return application
+
+
+@app.get(
+    "/jobs/{job_id}/applications",
+    response_model=list[JobApplicationResponse],
+)
+def list_job_applications(
+    job_id: int,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    job = db.query(Job).filter(Job.id == job_id).first()
+
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found.",
+        )
+
+    if job.customer_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view applications for your own jobs.",
+        )
+
+    applications = (
+        db.query(JobApplication)
+        .filter(JobApplication.job_id == job_id)
+        .order_by(
+            JobApplication.created_at.desc(),
+            JobApplication.id.desc(),
+        )
+        .all()
+    )
+
+    return applications
