@@ -68,3 +68,7 @@ class JobApplicationResponse(BaseModel):
     cover_letter: str
     status: str
     created_at: datetime
+
+
+class JobApplicationUpdate(BaseModel):
+    status: str = Field(pattern="^(accepted|rejected)$")

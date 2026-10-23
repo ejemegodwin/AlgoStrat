@@ -16,6 +16,7 @@ from app.models import Job, JobApplication, User
 from app.schemas import (
     JobApplicationCreate,
     JobApplicationResponse,
+    JobApplicationUpdate,
     JobCreate,
     JobResponse,
     JobUpdate,
@@ -456,3 +457,64 @@ def list_job_applications(
     )
 
     return applications
+
+
+@app.patch(
+    "/jobs/{job_id}/applications/{application_id}",
+    response_model=JobApplicationResponse,
+)
+def update_job_application(
+    job_id: int,
+    application_id: int,
+    application_data: JobApplicationUpdate,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    job = db.query(Job).filter(Job.id == job_id).first()
+
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found.",
+        )
+
+    if job.customer_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage applications for your own jobs.",
+        )
+
+    application = (
+        db.query(JobApplication)
+        .filter(
+            JobApplication.id == application_id,
+            JobApplication.job_id == job_id,
+        )
+        .first()
+    )
+
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found.",
+        )
+
+    if application.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only pending applications can be updated.",
+        )
+
+    application.status = application_data.status
+
+    try:
+        db.commit()
+        db.refresh(application)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to update application right now. Please try again later.",
+        ) from exc
+
+    return application

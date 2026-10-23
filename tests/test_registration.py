@@ -1481,3 +1481,302 @@ def test_job_owner_gets_empty_list_when_no_applications_exist(client):
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_job_owner_can_accept_application(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Accept Application Owner",
+            "email": "accept-application-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_id = owner_response.json()["id"]
+    owner_token = create_access_token(owner_id)
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a Reporting Tool",
+            "description": "Build a reporting tool for a small business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    worker_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Accept Application Worker",
+            "email": "accept-application-worker@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    worker_id = worker_response.json()["id"]
+    worker_token = create_access_token(worker_id)
+
+    application_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "cover_letter": (
+                "I have the skills and experience to build this tool."
+            ),
+        },
+    )
+    assert application_response.status_code == 201
+    application_id = application_response.json()["id"]
+
+    response = client.patch(
+        f"/jobs/{job_id}/applications/{application_id}",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"status": "accepted"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == application_id
+    assert response.json()["status"] == "accepted"
+
+
+def test_job_owner_can_reject_application(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Reject Application Owner",
+            "email": "reject-application-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_id = owner_response.json()["id"]
+    owner_token = create_access_token(owner_id)
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Create a Business Website",
+            "description": "Create a responsive website for a business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    worker_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Reject Application Worker",
+            "email": "reject-application-worker@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    worker_token = create_access_token(worker_response.json()["id"])
+
+    application_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "cover_letter": (
+                "I have the skills and experience to build this website."
+            ),
+        },
+    )
+    assert application_response.status_code == 201
+    application_id = application_response.json()["id"]
+
+    response = client.patch(
+        f"/jobs/{job_id}/applications/{application_id}",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"status": "rejected"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == application_id
+    assert response.json()["status"] == "rejected"
+
+
+def test_non_owner_cannot_update_job_application(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Private Job Owner",
+            "email": "private-job-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build an Online Store",
+            "description": "Build an online store for a small business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    worker_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Private Job Worker",
+            "email": "private-job-worker@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    worker_token = create_access_token(worker_response.json()["id"])
+
+    application_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "cover_letter": (
+                "I have the skills and experience to build this store."
+            ),
+        },
+    )
+    assert application_response.status_code == 201
+    application_id = application_response.json()["id"]
+
+    outsider_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Unrelated User",
+            "email": "unrelated-job-user@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    outsider_token = create_access_token(outsider_response.json()["id"])
+
+    response = client.patch(
+        f"/jobs/{job_id}/applications/{application_id}",
+        headers={"Authorization": f"Bearer {outsider_token}"},
+        json={"status": "accepted"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == (
+        "You can only manage applications for your own jobs."
+    )
+
+    # Confirm the application was not changed.
+    applications_response = client.get(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert applications_response.status_code == 200
+    assert applications_response.json()[0]["status"] == "pending"
+
+
+def test_job_application_rejects_invalid_status(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Invalid Status Owner",
+            "email": "invalid-status-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a Mobile App",
+            "description": "Build a mobile application for a business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    worker_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Invalid Status Worker",
+            "email": "invalid-status-worker@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    worker_token = create_access_token(worker_response.json()["id"])
+
+    application_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "cover_letter": (
+                "I have the skills and experience to build this application."
+            ),
+        },
+    )
+    assert application_response.status_code == 201
+    application_id = application_response.json()["id"]
+
+    response = client.patch(
+        f"/jobs/{job_id}/applications/{application_id}",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"status": "hired"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_decided_application_cannot_be_updated_again(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Decided Application Owner",
+            "email": "decided-application-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Create a Data Dashboard",
+            "description": "Create a data dashboard for a small business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    worker_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Decided Application Worker",
+            "email": "decided-application-worker@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    worker_token = create_access_token(worker_response.json()["id"])
+
+    application_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "cover_letter": (
+                "I have the skills and experience to create this dashboard."
+            ),
+        },
+    )
+    assert application_response.status_code == 201
+    application_id = application_response.json()["id"]
+
+    accepted_response = client.patch(
+        f"/jobs/{job_id}/applications/{application_id}",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"status": "accepted"},
+    )
+    assert accepted_response.status_code == 200
+    assert accepted_response.json()["status"] == "accepted"
+
+    rejected_response = client.patch(
+        f"/jobs/{job_id}/applications/{application_id}",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"status": "rejected"},
+    )
+
+    assert rejected_response.status_code == 400
+    assert rejected_response.json()["detail"] == (
+        "Only pending applications can be updated."
+    )
