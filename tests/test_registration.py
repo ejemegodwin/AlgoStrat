@@ -1072,3 +1072,236 @@ def test_list_jobs_filters_by_location(client):
     jobs = response.json()
     assert len(jobs) == 1
     assert jobs[0]["location"] == "Lagos, Nigeria"
+
+
+def test_worker_can_apply_for_open_job(client):
+    # Register the job owner.
+    owner_data = {
+        "full_name": "Job Owner",
+        "email": "jobowner@example.com",
+        "password": "SecurePass123!",
+    }
+    owner_response = client.post("/auth/register", json=owner_data)
+    owner_id = owner_response.json()["id"]
+    owner_token = create_access_token(owner_id)
+
+    # The owner creates an open job.
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a website",
+            "description": "Create a professional business website.",
+        },
+    )
+    assert job_response.status_code == 201
+    job_id = job_response.json()["id"]
+
+    # Register a different user who applies for the job.
+    worker_data = {
+        "full_name": "Job Applicant",
+        "email": "applicant@example.com",
+        "password": "SecurePass123!",
+    }
+    worker_response = client.post("/auth/register", json=worker_data)
+    worker_id = worker_response.json()["id"]
+    worker_token = create_access_token(worker_id)
+
+    response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "cover_letter": (
+                "I have experience building professional websites "
+                "and can deliver this project successfully."
+            ),
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["job_id"] == job_id
+    assert response.json()["applicant_id"] == worker_id
+    assert response.json()["cover_letter"].startswith("I have experience")
+    assert response.json()["status"] == "pending"
+    assert response.json()["created_at"]
+
+
+def test_worker_cannot_apply_for_same_job_twice(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Duplicate Test Owner",
+            "email": "duplicate-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Design a logo",
+            "description": "Design a unique logo for a new business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    worker_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Duplicate Test Worker",
+            "email": "duplicate-worker@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    worker_token = create_access_token(worker_response.json()["id"])
+    headers = {"Authorization": f"Bearer {worker_token}"}
+    application_data = {
+        "cover_letter": (
+            "I have relevant design experience and would love "
+            "to work on this project."
+        ),
+    }
+
+    first_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers=headers,
+        json=application_data,
+    )
+    second_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers=headers,
+        json=application_data,
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 409
+    assert second_response.json()["detail"] == (
+        "You have already applied for this job."
+    )
+
+
+def test_job_owner_cannot_apply_for_own_job(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Self Apply Owner",
+            "email": "self-apply-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_id = owner_response.json()["id"]
+    owner_token = create_access_token(owner_id)
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build an API",
+            "description": "Build a REST API for a small business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "cover_letter": (
+                "I have the skills needed to complete this project."
+            ),
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "You cannot apply for your own job."
+    )
+
+
+def test_worker_cannot_apply_for_closed_job(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Closed Job Owner",
+            "email": "closed-job-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_id = owner_response.json()["id"]
+    owner_token = create_access_token(owner_id)
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a Website",
+            "description": "Build a professional website for a business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    close_response = client.patch(
+        f"/jobs/{job_id}/close",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert close_response.status_code == 200
+
+    worker_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Closed Job Worker",
+            "email": "closed-job-worker@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    worker_token = create_access_token(worker_response.json()["id"])
+
+    response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "cover_letter": (
+                "I have the skills and experience to complete this project."
+            ),
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "You can only apply for open jobs."
+    )
+
+
+def test_applying_for_job_requires_authentication(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Authentication Test Owner",
+            "email": "application-auth-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Create a Dashboard",
+            "description": "Create a dashboard for business reporting.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    response = client.post(
+        f"/jobs/{job_id}/applications",
+        json={
+            "cover_letter": (
+                "I have the skills and experience to complete this project."
+            ),
+        },
+    )
+
+    assert response.status_code == 401

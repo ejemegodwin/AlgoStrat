@@ -12,8 +12,10 @@ from app.core.security import (
 )
 from app.database import check_database_connection
 from app.db_session import get_db
-from app.models import Job, User
+from app.models import Job, JobApplication, User
 from app.schemas import (
+    JobApplicationCreate,
+    JobApplicationResponse,
     JobCreate,
     JobResponse,
     JobUpdate,
@@ -360,3 +362,61 @@ def update_job(
         ) from exc
 
     return job
+
+
+
+@app.post(
+    "/jobs/{job_id}/applications",
+    response_model=JobApplicationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def apply_for_job(
+    job_id: int,
+    application_data: JobApplicationCreate,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    job = db.query(Job).filter(Job.id == job_id).first()
+
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found.",
+        )
+
+    if job.status != "open":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You can only apply for open jobs.",
+        )
+
+    if job.customer_id == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot apply for your own job.",
+        )
+
+    application = JobApplication(
+        job_id=job_id,
+        applicant_id=user_id,
+        cover_letter=application_data.cover_letter,
+    )
+
+    try:
+        db.add(application)
+        db.commit()
+        db.refresh(application)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You have already applied for this job.",
+        ) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to submit application right now. Please try again later.",
+        ) from exc
+
+    return application

@@ -1,4 +1,6 @@
 from decimal import Decimal
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 class UserCreate(BaseModel):
@@ -51,3 +53,18 @@ class JobUpdate(BaseModel):
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     category: str | None = Field(default=None, max_length=50)
     location: str | None = Field(default=None, max_length=120)
+
+
+class JobApplicationCreate(BaseModel):
+    cover_letter: str = Field(min_length=20, max_length=5000)
+
+
+class JobApplicationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    job_id: int
+    applicant_id: int
+    cover_letter: str
+    status: str
+    created_at: datetime

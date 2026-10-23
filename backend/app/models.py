@@ -9,6 +9,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -63,3 +64,32 @@ class Job(Base):
     )
 
     customer: Mapped["User"] = relationship(back_populates="jobs")
+
+
+class JobApplication(Base):
+    __tablename__ = "job_applications"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "job_id",
+            "applicant_id",
+            name="uq_job_application_applicant",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.id"), nullable=False, index=True
+    )
+    applicant_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
+    cover_letter: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
