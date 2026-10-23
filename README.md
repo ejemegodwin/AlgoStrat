@@ -73,6 +73,7 @@ All protected endpoints require a valid access token in the request header:
 | `GET` | `/jobs/{job_id}/applications` | List applications for your own job | Yes |
 | `PATCH` | `/jobs/{job_id}/applications/{application_id}` | Accept or reject a pending application for your job | Yes |
 | `GET` | `/applications/me` | List your own applications and their statuses | Yes |
+| `PATCH` | `/applications/{application_id}/withdraw` | Withdraw your own pending application | Yes |
 
 Interactive API documentation is available at `/docs` while the API server is running.
 
@@ -162,7 +163,7 @@ The next development phase will continue strengthening marketplace workflows bef
 - [x] Job owners viewing applications
 - [x] Accepting and rejecting applications
 - [x] Applicants viewing their own application statuses
-- [ ] Application withdrawal
+- [x] Application withdrawal with ownership and status checks
 - [ ] React frontend
 - [ ] Worker offers and proposals
 - [ ] Hiring and contract workflows

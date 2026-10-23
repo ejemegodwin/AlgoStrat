@@ -1890,3 +1890,189 @@ def test_viewing_my_applications_requires_authentication(client):
     response = client.get("/applications/me")
 
     assert response.status_code == 401
+
+def test_applicant_can_withdraw_own_pending_application(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Withdrawal Owner",
+            "email": "withdraw-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a website",
+            "description": "Build a professional website for a business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    applicant_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Withdrawal Applicant",
+            "email": "withdraw-applicant@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    applicant_token = create_access_token(
+        applicant_response.json()["id"]
+    )
+
+    application_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {applicant_token}"},
+        json={
+            "cover_letter": (
+                "I have the skills and experience needed for this project."
+            ),
+        },
+    )
+    application_id = application_response.json()["id"]
+
+    response = client.patch(
+        f"/applications/{application_id}/withdraw",
+        headers={"Authorization": f"Bearer {applicant_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "withdrawn"
+
+    my_applications = client.get(
+        "/applications/me",
+        headers={"Authorization": f"Bearer {applicant_token}"},
+    )
+    assert my_applications.status_code == 200
+    assert my_applications.json()[0]["status"] == "withdrawn"
+
+
+def test_applicant_cannot_withdraw_another_users_application(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Protected Job Owner",
+            "email": "protected-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Design a logo",
+            "description": "Design a logo for a growing business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    applicant_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Original Applicant",
+            "email": "original-applicant@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    applicant_token = create_access_token(
+        applicant_response.json()["id"]
+    )
+
+    application_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {applicant_token}"},
+        json={
+            "cover_letter": (
+                "I have relevant experience and can deliver this project."
+            ),
+        },
+    )
+    application_id = application_response.json()["id"]
+
+    other_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Different Applicant",
+            "email": "different-applicant@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    other_token = create_access_token(other_response.json()["id"])
+
+    response = client.patch(
+        f"/applications/{application_id}/withdraw",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == (
+        "You can only withdraw your own applications."
+    )
+
+
+def test_applicant_cannot_withdraw_decided_application(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Decision Owner",
+            "email": "decision-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build an API",
+            "description": "Build a secure API for a business.",
+        },
+    )
+    job_id = job_response.json()["id"]
+
+    applicant_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Decision Applicant",
+            "email": "decision-applicant@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    applicant_token = create_access_token(
+        applicant_response.json()["id"]
+    )
+
+    application_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {applicant_token}"},
+        json={
+            "cover_letter": (
+                "I have the backend skills required for this project."
+            ),
+        },
+    )
+    application_id = application_response.json()["id"]
+
+    decision_response = client.patch(
+        f"/jobs/{job_id}/applications/{application_id}",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"status": "accepted"},
+    )
+    assert decision_response.status_code == 200
+
+    response = client.patch(
+        f"/applications/{application_id}/withdraw",
+        headers={"Authorization": f"Bearer {applicant_token}"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Only pending applications can be withdrawn."
+    )

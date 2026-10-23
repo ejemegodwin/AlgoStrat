@@ -539,3 +539,51 @@ def update_job_application(
         ) from exc
 
     return application
+
+
+@app.patch(
+    "/applications/{application_id}/withdraw",
+    response_model=JobApplicationResponse,
+)
+def withdraw_application(
+    application_id: int,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    application = (
+        db.query(JobApplication)
+        .filter(JobApplication.id == application_id)
+        .first()
+    )
+
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found.",
+        )
+
+    if application.applicant_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only withdraw your own applications.",
+        )
+
+    if application.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only pending applications can be withdrawn.",
+        )
+
+    application.status = "withdrawn"
+
+    try:
+        db.commit()
+        db.refresh(application)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to withdraw application right now. Please try again later.",
+        ) from exc
+
+    return application
