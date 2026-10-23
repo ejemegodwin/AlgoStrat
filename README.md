@@ -1,61 +1,87 @@
-# AlgoStrat(Algorithmic Strategies)
+# AlgoStrat — Algorithmic Strategies
 
 **An international services marketplace connecting customers with skilled individuals and businesses.**
 
-AlgoStrat aims to make it easier for people and businesses to find work opportunities, hire talent, and manage real-world projects across borders. Each account is intended to support both hiring and working.
+AlgoStrat aims to make it easier for people and businesses to find work opportunities, hire talent, and manage projects across borders. Each account is designed to support both hiring and working, giving users the flexibility to participate on either side of the marketplace.
 
 ## Technology Stack
 
-- **Frontend:** React
-- **Backend:** FastAPI (Python)
+- **Frontend:** React (planned)
+- **Backend:** FastAPI and Python
 - **Database:** PostgreSQL
-- **Authentication:** JWT (JSON Web Tokens)
+- **ORM:** SQLAlchemy
+- **Authentication:** JWT access tokens
+- **Password security:** Secure password hashing
 - **Database migrations:** Alembic
-- **Testing:** pytest
+- **Testing:** pytest and FastAPI TestClient
 
 ## Implemented Features
 
 ### Authentication and User Accounts
-- User registration
-- Password hashing and verification
+- User registration with email validation
+- Secure password hashing and verification
 - User login and JWT access tokens
 - Authenticated user profile endpoint
-- Protection for authenticated routes
+- Authentication protection for private endpoints
 
 ### Job Management
-- Create jobs with a title, description, optional budget, and currency
-- List open jobs, with newest jobs returned first
+- Create jobs with titles, descriptions, optional budgets, and currencies
+- Browse open jobs, with newest jobs listed first
 - Retrieve individual job details
-- Close your own jobs
 - Update your own open jobs
-- Validate job updates and reject empty requests
+- Close your own jobs
+- Validate job updates and reject invalid requests
 - Enforce job ownership permissions
+
+### Job Applications
+- Submit applications to open jobs
+- Include a cover letter with each application
+- Prevent duplicate applications to the same job
+- Prevent applicants from applying to their own jobs
+- Allow job owners to view applications for their jobs
+- Allow job owners to accept or reject pending applications
+- Prevent unauthorized users from managing another owner's applications
+- Prevent application decisions from being changed after acceptance or rejection
+- Allow applicants to view their own applications and current statuses
+- Require authentication to access private application endpoints
 
 ### Testing and Quality
 - Automated backend tests using pytest
-- Tests for authentication, job management, validation, and access control
+- Tests for authentication, job management, application workflows, validation, and access control
+- SQLite-based isolated test database
+- Database error handling for relevant operations
 
-## API Endpoints
+## API Reference
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| POST | `/auth/register` | Register a user |
-| POST | `/auth/login` | Log in and obtain an access token |
-| GET | `/auth/me` | Get the authenticated user's profile |
-| POST | `/jobs` | Create a job |
-| GET | `/jobs` | List open jobs |
-| GET | `/jobs/{job_id}` | Get job details |
-| PATCH | `/jobs/{job_id}` | Update your own open job |
-| PATCH | `/jobs/{job_id}/close` | Close your own job |
+All protected endpoints require a valid access token in the request header:
 
-Interactive API documentation is available at `/docs` when the FastAPI server is running.
+`Authorization: Bearer <access_token>`
+
+| Method | Endpoint | Purpose | Authentication |
+|---|---|---|---|
+| `GET` | `/` | API welcome message | No |
+| `GET` | `/health/database` | Check database connectivity | No |
+| `POST` | `/auth/register` | Register a user | No |
+| `POST` | `/auth/login` | Log in and obtain an access token | No |
+| `GET` | `/auth/me` | Retrieve the authenticated user's profile | Yes |
+| `POST` | `/jobs` | Create a job | Yes |
+| `GET` | `/jobs` | List open jobs | No |
+| `GET` | `/jobs/{job_id}` | Retrieve job details | No |
+| `PATCH` | `/jobs/{job_id}` | Update your own open job | Yes |
+| `PATCH` | `/jobs/{job_id}/close` | Close your own job | Yes |
+| `POST` | `/jobs/{job_id}/applications` | Apply for an open job | Yes |
+| `GET` | `/jobs/{job_id}/applications` | List applications for your own job | Yes |
+| `PATCH` | `/jobs/{job_id}/applications/{application_id}` | Accept or reject a pending application for your job | Yes |
+| `GET` | `/applications/me` | List your own applications and their statuses | Yes |
+
+Interactive API documentation is available at `/docs` while the API server is running.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.12 or compatible version
-- A PostgreSQL database (a hosted PostgreSQL service is supported)
+- Python 3.12 or a compatible version
+- PostgreSQL database (a hosted PostgreSQL service is supported)
 - Git
 
 ### 1. Clone the repository
@@ -86,7 +112,7 @@ Create your local environment file:
 cp .env.example .env
 ```
 
-Edit `.env` and set the following values for your environment:
+Edit `.env` and configure:
 
 - `DATABASE_URL` — your PostgreSQL connection string
 - `JWT_SECRET_KEY` — a strong, randomly generated secret
@@ -109,7 +135,7 @@ Ensure your database connection is configured before running migrations.
 uvicorn app.main:app --reload --app-dir backend
 ```
 
-Open `http://127.0.0.1:8000/docs` to explore the interactive API documentation.
+Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) to explore and test the API.
 
 ### 7. Run the automated tests
 
@@ -119,7 +145,9 @@ PYTHONPATH=backend python -m pytest -v
 
 ## Project Status
 
-AlgoStrat is under active development. The current focus is building a reliable backend foundation before expanding into the frontend, worker offers, and other marketplace features.
+AlgoStrat is under active development. The backend currently supports authentication, job management, application submission, application review, hiring decisions, and applicant status tracking.
+
+The next development phase will continue strengthening marketplace workflows before expanding the React frontend and preparing for production deployment.
 
 ## Roadmap
 
@@ -129,8 +157,12 @@ AlgoStrat is under active development. The current focus is building a reliable 
 - [x] User registration and authentication
 - [x] Job creation and discovery
 - [x] Job detail retrieval
-- [x] Job closing with ownership checks
-- [x] Job editing with ownership checks
+- [x] Job editing and closing with ownership checks
+- [x] Job application submission
+- [x] Job owners viewing applications
+- [x] Accepting and rejecting applications
+- [x] Applicants viewing their own application statuses
+- [ ] Application withdrawal
 - [ ] React frontend
 - [ ] Worker offers and proposals
 - [ ] Hiring and contract workflows
@@ -140,4 +172,4 @@ AlgoStrat is under active development. The current focus is building a reliable 
 
 ## Vision
 
-Build a dependable, international marketplace where individuals and businesses can hire, work, and collaborate across borders.
+Build a dependable, international marketplace where individuals and businesses can find opportunities, hire talent, and collaborate across borders.
