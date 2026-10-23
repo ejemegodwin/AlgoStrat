@@ -424,6 +424,27 @@ def apply_for_job(
 
 
 @app.get(
+    "/applications/me",
+    response_model=list[JobApplicationResponse],
+)
+def list_my_applications(
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    applications = (
+        db.query(JobApplication)
+        .filter(JobApplication.applicant_id == user_id)
+        .order_by(
+            JobApplication.created_at.desc(),
+            JobApplication.id.desc(),
+        )
+        .all()
+    )
+
+    return applications
+
+
+@app.get(
     "/jobs/{job_id}/applications",
     response_model=list[JobApplicationResponse],
 )

@@ -1780,3 +1780,113 @@ def test_decided_application_cannot_be_updated_again(client):
     assert rejected_response.json()["detail"] == (
         "Only pending applications can be updated."
     )
+
+def test_applicant_can_view_own_applications(client):
+    owner_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Application Test Owner",
+            "email": "my-app-owner@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    owner_token = create_access_token(owner_response.json()["id"])
+
+    job_response = client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "title": "Build a mobile app",
+            "description": "Build a mobile application for a small business.",
+        },
+    )
+    assert job_response.status_code == 201
+    job_id = job_response.json()["id"]
+
+    applicant_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Application Test Applicant",
+            "email": "my-applicant@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    applicant_id = applicant_response.json()["id"]
+    applicant_token = create_access_token(applicant_id)
+
+    submission_response = client.post(
+        f"/jobs/{job_id}/applications",
+        headers={"Authorization": f"Bearer {applicant_token}"},
+        json={
+            "cover_letter": (
+                "I have the relevant experience and skills "
+                "to complete this mobile application project."
+            ),
+        },
+    )
+    assert submission_response.status_code == 201
+
+    response = client.get(
+        "/applications/me",
+        headers={"Authorization": f"Bearer {applicant_token}"},
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["job_id"] == job_id
+    assert response.json()[0]["applicant_id"] == applicant_id
+    assert response.json()[0]["status"] == "pending"
+
+def test_applicant_cannot_view_another_users_applications(client):
+    first_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "First Applicant",
+            "email": "first-applicant@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    first_token = create_access_token(first_response.json()["id"])
+
+    second_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Second Applicant",
+            "email": "second-applicant@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    second_token = create_access_token(second_response.json()["id"])
+
+    response = client.get(
+        "/applications/me",
+        headers={"Authorization": f"Bearer {second_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_applicant_with_no_applications_gets_empty_list(client):
+    user_response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "No Applications User",
+            "email": "no-applications@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    user_token = create_access_token(user_response.json()["id"])
+
+    response = client.get(
+        "/applications/me",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+def test_viewing_my_applications_requires_authentication(client):
+    response = client.get("/applications/me")
+
+    assert response.status_code == 401
