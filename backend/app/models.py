@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -44,6 +45,13 @@ class User(Base):
 class Job(Base):
     __tablename__ = "jobs"
 
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('open', 'closed')",
+            name="ck_jobs_status",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     customer_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"), nullable=False, index=True
@@ -74,6 +82,10 @@ class JobApplication(Base):
             "job_id",
             "applicant_id",
             name="uq_job_application_applicant",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'accepted', 'rejected', 'withdrawn')",
+            name="ck_job_applications_status",
         ),
     )
 
