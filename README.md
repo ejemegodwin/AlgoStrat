@@ -55,6 +55,8 @@ AlgoStrat aims to make it easier for people and businesses to find work opportun
 - Automated backend tests using pytest
 - Tests for authentication, job management, application workflows, validation, and access control
 - SQLite-based isolated test database
+- PostgreSQL-backed integration tests for concurrency and row-locking behavior
+- Continuous integration with GitHub Actions, including migration verification on PostgreSQL
 - Database error handling for relevant operations
 
 ## API Reference
@@ -157,6 +159,19 @@ Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) to explore and tes
 ```bash
 PYTHONPATH=backend python -m pytest -v
 ```
+
+Most tests run against an isolated in-memory SQLite database. A small
+set of PostgreSQL integration tests (concurrency, row locking) is
+skipped unless `TEST_DATABASE_URL` points at a dedicated throwaway
+PostgreSQL database — never a production or shared one:
+
+```bash
+TEST_DATABASE_URL="postgresql://user:password@localhost:5432/algostrat_test" \
+    PYTHONPATH=backend python -m pytest -v
+```
+
+GitHub Actions runs the full suite (including migrations and the
+PostgreSQL tests) on every push and pull request.
 
 ## Project Status
 
