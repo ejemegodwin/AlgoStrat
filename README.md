@@ -23,6 +23,9 @@ AlgoStrat aims to make it easier for people and businesses to find work opportun
 - User login and JWT access tokens
 - Authenticated user profile endpoint
 - Authentication protection for private endpoints
+- Case-insensitive email handling for registration and login
+- Uniform login timing for unknown emails and wrong passwords
+- Rate limiting on registration and login (in-memory, single-process; use a shared store such as Redis for multi-instance deployments)
 
 ### Job Management
 - Create jobs with titles, descriptions, optional budgets, and currencies

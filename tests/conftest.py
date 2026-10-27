@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.rate_limit import login_rate_limiter, register_rate_limiter
 from app.db_session import get_db
 from app.main import app
 from app.models import Base
@@ -11,6 +12,10 @@ from app.models import Base
 
 @pytest.fixture
 def client_and_db():
+    # Rate limiters are process-global; reset them so tests are isolated.
+    login_rate_limiter.reset()
+    register_rate_limiter.reset()
+
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},

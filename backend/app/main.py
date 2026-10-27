@@ -4,7 +4,13 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.rate_limit import (
+    login_rate_limiter,
+    rate_limit,
+    register_rate_limiter,
+)
 from app.core.security import (
+    DUMMY_PASSWORD_HASH,
     create_access_token,
     get_current_user_id,
     hash_password,
@@ -56,6 +62,7 @@ def database_health():
     "/auth/register",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit(register_rate_limiter))],
 )
 
 def register_user(
@@ -93,7 +100,10 @@ def register_user(
 
     return user
 
-@app.post("/auth/login")
+@app.post(
+    "/auth/login",
+    dependencies=[Depends(rate_limit(login_rate_limiter))],
+)
 def login_user(
     login_data: UserLogin,
     db: Session = Depends(get_db),
@@ -104,10 +114,17 @@ def login_user(
         .first()
     )
 
-    if user is None or not verify_password(
-        login_data.password,
-        user.password_hash,
-    ):
+    if user is None:
+        # Burn one Argon2 verification so unknown emails take the same
+        # time as wrong passwords (prevents timing-based enumeration).
+        verify_password(login_data.password, DUMMY_PASSWORD_HASH)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",

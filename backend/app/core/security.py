@@ -33,6 +33,12 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed_password: str) -> bool:
     return password_hash.verify(password, hashed_password)
 
+
+# Precomputed hash used at login when the email does not belong to any
+# account, so that "unknown email" costs the same Argon2 verification as
+# "wrong password" and accounts cannot be enumerated via response timing.
+DUMMY_PASSWORD_HASH = password_hash.hash("algostrat-timing-equalizer")
+
 def create_access_token(user_id: int) -> str:
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
