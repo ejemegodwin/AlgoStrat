@@ -154,7 +154,7 @@ def create_job(
         category=job_data.category,
         location=job_data.location,
         budget=job_data.budget,
-        currency=job_data.currency.upper(),
+        currency=job_data.currency,
     )
 
     try:
