@@ -34,10 +34,21 @@ def _normalize_currency(value: str) -> str:
     return normalized
 
 
+def _normalize_email(value: str) -> str:
+    # Accounts must be case-insensitive: the same mailbox must never end
+    # up as two accounts, and login must work regardless of casing.
+    return value.strip().lower()
+
+
 class UserCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
 
 
 class UserResponse(BaseModel):
@@ -52,6 +63,11 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
 
 
 class JobCreate(BaseModel):
