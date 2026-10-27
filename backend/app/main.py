@@ -34,6 +34,15 @@ from app.schemas import (
 app = FastAPI(title="AlgoStrat API")
 
 
+def _escape_like(term: str) -> str:
+    """Escape LIKE wildcards so user input is matched literally."""
+    return (
+        term.replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+
+
 @app.get("/")
 def home():
     return {
@@ -237,10 +246,10 @@ def list_jobs(
     query = db.query(Job).filter(Job.status == "open")
 
     if keyword and keyword.strip():
-        search_term = f"%{keyword.strip()}%"
+        search_term = f"%{_escape_like(keyword.strip())}%"
         query = query.filter(
-            Job.title.ilike(search_term)
-            | Job.description.ilike(search_term)
+            Job.title.ilike(search_term, escape="\\")
+            | Job.description.ilike(search_term, escape="\\")
         )
 
     if currency:
@@ -248,12 +257,16 @@ def list_jobs(
 
     if category and category.strip():
         query = query.filter(
-            Job.category.ilike(f"%{category.strip()}%")
+            Job.category.ilike(
+                f"%{_escape_like(category.strip())}%", escape="\\"
+            )
         )
 
     if location and location.strip():
         query = query.filter(
-            Job.location.ilike(f"%{location.strip()}%")
+            Job.location.ilike(
+                f"%{_escape_like(location.strip())}%", escape="\\"
+            )
         )
 
     if min_budget is not None:
