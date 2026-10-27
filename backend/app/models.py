@@ -6,11 +6,13 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -86,6 +88,15 @@ class JobApplication(Base):
         CheckConstraint(
             "status IN ('pending', 'accepted', 'rejected', 'withdrawn')",
             name="ck_job_applications_status",
+        ),
+        # Single-hire invariant: at most one accepted application per job,
+        # enforced by the database even if application logic regresses.
+        Index(
+            "uq_job_applications_one_accepted_per_job",
+            "job_id",
+            unique=True,
+            sqlite_where=text("status = 'accepted'"),
+            postgresql_where=text("status = 'accepted'"),
         ),
     )
 

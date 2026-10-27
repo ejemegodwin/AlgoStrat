@@ -40,6 +40,9 @@ AlgoStrat aims to make it easier for people and businesses to find work opportun
 - Prevent applicants from applying to their own jobs
 - Allow job owners to view applications for their jobs
 - Allow job owners to accept or reject pending applications
+- Accepting an application hires the worker: the job closes automatically and all other pending applications are rejected, atomically
+- Each job has at most one accepted application, enforced by a database constraint
+- Closing a job rejects its remaining pending applications
 - Prevent unauthorized users from managing another owner's applications
 - Prevent application decisions from being changed after acceptance or rejection
 - Allow applicants to view their own applications and current statuses

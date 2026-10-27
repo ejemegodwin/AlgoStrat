@@ -278,7 +278,13 @@ def close_job(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    job = db.query(Job).filter(Job.id == job_id).first()
+    # Lock the job row so a concurrent accept cannot race the closure.
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id)
+        .with_for_update()
+        .first()
+    )
 
     if job is None:
         raise HTTPException(
@@ -293,6 +299,13 @@ def close_job(
         )
 
     job.status = "closed"
+
+    # A closed job must not keep pending applications: they can no longer
+    # be accepted, so resolve them as rejected in the same transaction.
+    db.query(JobApplication).filter(
+        JobApplication.job_id == job_id,
+        JobApplication.status == "pending",
+    ).update({"status": "rejected"}, synchronize_session=False)
 
     try:
         db.commit()
@@ -377,7 +390,14 @@ def apply_for_job(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    job = db.query(Job).filter(Job.id == job_id).first()
+    # Lock the job row so an accept/close cannot commit between the
+    # open-status check and the insert of this application.
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id)
+        .with_for_update()
+        .first()
+    )
 
     if job is None:
         raise HTTPException(
@@ -491,7 +511,15 @@ def update_job_application(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    job = db.query(Job).filter(Job.id == job_id).first()
+    # Lock the job row for the whole decision: two concurrent accepts for
+    # the same single-hire job are serialized, and the second one sees the
+    # job as closed instead of hiring a second applicant.
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id)
+        .with_for_update()
+        .first()
+    )
 
     if job is None:
         raise HTTPException(
@@ -526,7 +554,26 @@ def update_job_application(
             detail="Only pending applications can be updated.",
         )
 
-    application.status = application_data.status
+    if application_data.status == "accepted":
+        # Accepting means hiring for a single-hire job: the job must still
+        # be open, and accepting atomically closes the job and rejects all
+        # other pending applications in the same transaction.
+        if job.status != "open":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You can only accept applications for open jobs.",
+            )
+
+        application.status = "accepted"
+        job.status = "closed"
+
+        db.query(JobApplication).filter(
+            JobApplication.job_id == job_id,
+            JobApplication.id != application_id,
+            JobApplication.status == "pending",
+        ).update({"status": "rejected"}, synchronize_session=False)
+    else:
+        application.status = "rejected"
 
     try:
         db.commit()
