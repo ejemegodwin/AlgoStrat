@@ -1,7 +1,15 @@
 from decimal import Decimal
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    StringConstraints,
+    field_validator,
+)
 
 # Currencies AlgoStrat currently supports for job budgets.
 # Deliberately a curated allowlist (not "any 3-letter code") so that
@@ -40,9 +48,22 @@ def _normalize_email(value: str) -> str:
     return value.strip().lower()
 
 
+def _empty_string_to_none(value: str | None) -> str | None:
+    # Optional text fields: a whitespace-only value means "absent",
+    # so store NULL rather than an empty string.
+    if value is None:
+        return None
+    return value or None
+
+
 class UserCreate(BaseModel):
-    full_name: str = Field(min_length=2, max_length=120)
+    full_name: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=2, max_length=120),
+    ]
     email: EmailStr
+    # Passwords must never be whitespace-stripped: every character is
+    # part of the secret and is hashed exactly as entered.
     password: str = Field(min_length=8, max_length=128)
 
     @field_validator("email")
@@ -71,17 +92,34 @@ class UserLogin(BaseModel):
 
 
 class JobCreate(BaseModel):
-    title: str = Field(min_length=3, max_length=150)
-    description: str = Field(min_length=10)
+    title: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=3, max_length=150),
+    ]
+    description: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=10),
+    ]
     budget: Decimal | None = Field(default=None, gt=0)
     currency: str = Field(default="USD")
-    category: str | None = Field(default=None, max_length=50)
-    location: str | None = Field(default=None, max_length=120)
+    category: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, max_length=50),
+    ] | None = None
+    location: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, max_length=120),
+    ] | None = None
 
     @field_validator("currency")
     @classmethod
     def normalize_currency(cls, value: str) -> str:
         return _normalize_currency(value)
+
+    @field_validator("category", "location")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        return _empty_string_to_none(value)
 
 
 class JobResponse(BaseModel):
@@ -99,12 +137,24 @@ class JobResponse(BaseModel):
 
 
 class JobUpdate(BaseModel):
-    title: str | None = Field(default=None, min_length=3, max_length=150)
-    description: str | None = Field(default=None, min_length=10)
+    title: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=3, max_length=150),
+    ] | None = None
+    description: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=10),
+    ] | None = None
     budget: Decimal | None = Field(default=None, gt=0)
     currency: str | None = Field(default=None)
-    category: str | None = Field(default=None, max_length=50)
-    location: str | None = Field(default=None, max_length=120)
+    category: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, max_length=50),
+    ] | None = None
+    location: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, max_length=120),
+    ] | None = None
 
     @field_validator("currency")
     @classmethod
@@ -114,9 +164,19 @@ class JobUpdate(BaseModel):
 
         return _normalize_currency(value)
 
+    @field_validator("category", "location")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        return _empty_string_to_none(value)
+
 
 class JobApplicationCreate(BaseModel):
-    cover_letter: str = Field(min_length=20, max_length=5000)
+    cover_letter: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True, min_length=20, max_length=5000
+        ),
+    ]
 
 
 class JobApplicationResponse(BaseModel):
