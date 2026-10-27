@@ -101,6 +101,14 @@ source .venv/bin/activate
 
 ### 3. Install dependencies
 
+For development (includes pytest and test tooling):
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+For production deployments only:
+
 ```bash
 pip install -r requirements.txt
 ```
