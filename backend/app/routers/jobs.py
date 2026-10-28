@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from app.core.security import get_current_user_id
 from app.db_session import get_db
 from app.models import Job, JobApplication
-from app.schemas import JobCreate, JobResponse, JobUpdate
+from app.schemas import JobCreate, JobRecommendation, JobResponse, JobUpdate
+from app.services import matching as matching_service
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -142,6 +143,53 @@ def list_jobs(
     )
 
     return jobs
+
+
+# Registered BEFORE /{job_id} so the literal path wins over the
+# path-parameter route.
+@router.get("/recommended", response_model=list[JobRecommendation])
+def recommended_jobs(
+    limit: int = 20,
+    offset: int = 0,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    if limit < 1 or limit > 100:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Limit must be between 1 and 100.",
+        )
+
+    if offset < 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Offset cannot be negative.",
+        )
+
+    context = matching_service.build_worker_context(db, user_id)
+
+    # The worker's own jobs are excluded: they cannot apply to them.
+    jobs = (
+        db.query(Job)
+        .filter(Job.status == "open", Job.customer_id != user_id)
+        .order_by(Job.created_at.desc(), Job.id.desc())
+        .all()
+    )
+
+    recommendations = []
+    for job in jobs:
+        total, factors = matching_service.score_job_for_worker(
+            job, context, whose="your"
+        )
+        recommendations.append(
+            JobRecommendation(job=job, score=total, factors=factors)
+        )
+
+    # Python's sort is stable, so equal scores keep the newest-first
+    # order the query established.
+    recommendations.sort(key=lambda item: item.score, reverse=True)
+
+    return recommendations[offset : offset + limit]
 
 
 @router.get("/{job_id}", response_model=JobResponse)

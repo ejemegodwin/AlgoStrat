@@ -4,12 +4,14 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user_id
 from app.db_session import get_db
-from app.models import Contract, ContractEvent, Job, JobApplication
+from app.models import Contract, ContractEvent, Job, JobApplication, User
 from app.schemas import (
     JobApplicationCreate,
     JobApplicationResponse,
     JobApplicationUpdate,
+    RankedApplicant,
 )
+from app.services import matching as matching_service
 
 router = APIRouter(tags=["applications"])
 
@@ -133,6 +135,68 @@ def list_job_applications(
     )
 
     return applications
+
+
+@router.get(
+    "/jobs/{job_id}/applicants/ranked",
+    response_model=list[RankedApplicant],
+)
+def rank_applicants(
+    job_id: int,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    job = db.query(Job).filter(Job.id == job_id).first()
+
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found.",
+        )
+
+    if job.customer_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view applicants for your own jobs.",
+        )
+
+    # The ranked pool is the pending applications — the decision still
+    # at hand. Withdrawn and decided applications are already resolved.
+    applications = (
+        db.query(JobApplication)
+        .filter(
+            JobApplication.job_id == job_id,
+            JobApplication.status == "pending",
+        )
+        .order_by(
+            JobApplication.created_at.desc(),
+            JobApplication.id.desc(),
+        )
+        .all()
+    )
+
+    ranked = []
+    for application in applications:
+        context = matching_service.build_worker_context(
+            db, application.applicant_id
+        )
+        # Same factors, same weights as the worker-facing side
+        # (ADR-010 transparency rule).
+        total, factors = matching_service.score_job_for_worker(
+            job, context, whose="the worker's"
+        )
+        worker = db.query(User).filter(User.id == application.applicant_id).first()
+        ranked.append(
+            RankedApplicant(
+                application=application,
+                worker_name=worker.full_name,
+                score=total,
+                factors=factors,
+            )
+        )
+
+    ranked.sort(key=lambda item: item.score, reverse=True)
+    return ranked
 
 
 @router.patch(

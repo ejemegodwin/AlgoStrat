@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import check_database_connection
-from app.routers import applications, auth, contracts, jobs, ledger
+from app.routers import applications, auth, contracts, jobs, ledger, profiles
 
 app = FastAPI(title="AlgoStrat API")
 
@@ -11,6 +11,7 @@ app.include_router(jobs.router)
 app.include_router(applications.router)
 app.include_router(contracts.router)
 app.include_router(ledger.router)
+app.include_router(profiles.router)
 
 
 @app.get("/")

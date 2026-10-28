@@ -67,7 +67,7 @@ def pg_client():
             text(
                 "TRUNCATE ledger_entries, ledger_transactions, "
                 "ledger_accounts, contract_events, milestones, contracts, "
-                "job_applications, jobs, users "
+                "job_applications, jobs, profile_tags, worker_profiles, users "
                 "RESTART IDENTITY CASCADE"
             )
         )

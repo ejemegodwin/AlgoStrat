@@ -330,3 +330,63 @@ class LedgerTransactionResponse(BaseModel):
     note: str | None
     created_at: datetime
     entries: list[LedgerEntryResponse]
+
+
+class WorkerProfileUpsert(BaseModel):
+    availability: str = Field(
+        default="available", pattern="^(available|busy|unavailable)$"
+    )
+    min_budget: Decimal | None = Field(default=None, gt=0)
+    skills: list[
+        Annotated[
+            str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)
+        ]
+    ] = Field(default_factory=list, max_length=10)
+    categories: list[
+        Annotated[
+            str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)
+        ]
+    ] = Field(default_factory=list, max_length=5)
+
+    @field_validator("skills", "categories")
+    @classmethod
+    def normalize_tags(cls, values: list[str]) -> list[str]:
+        # Lowercased and deduplicated so matching compares like with
+        # like; order of first appearance is preserved.
+        normalized: list[str] = []
+        for value in values:
+            value = value.lower()
+            if value not in normalized:
+                normalized.append(value)
+        return normalized
+
+
+class WorkerProfileResponse(BaseModel):
+    availability: str
+    min_budget: Decimal | None
+    skills: list[str]
+    categories: list[str]
+
+
+class RecommendationFactor(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    score: float
+    reason: str
+
+
+class JobRecommendation(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    job: JobResponse
+    score: float
+    factors: dict[str, RecommendationFactor]
+
+
+class RankedApplicant(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    application: JobApplicationResponse
+    worker_name: str
+    score: float
+    factors: dict[str, RecommendationFactor]

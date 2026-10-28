@@ -345,3 +345,62 @@ class LedgerEntry(Base):
     transaction: Mapped["LedgerTransaction"] = relationship(
         back_populates="entries"
     )
+
+
+class WorkerProfile(Base):
+    """Work-seeking data for matching (ADR-010), kept off the users row
+    because every account can both hire and work."""
+
+    __tablename__ = "worker_profiles"
+
+    __table_args__ = (
+        CheckConstraint(
+            "availability IN ('available', 'busy', 'unavailable')",
+            name="ck_worker_profiles_availability",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), unique=True, nullable=False
+    )
+    availability: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="available"
+    )
+    min_budget: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class ProfileTag(Base):
+    """A skill or category declared by a worker. Values are trimmed and
+    lowercased so matching compares like with like (ADR-010)."""
+
+    __tablename__ = "profile_tags"
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "kind", "value", name="uq_profile_tag"),
+        CheckConstraint(
+            "kind IN ('skill', 'category')", name="ck_profile_tags_kind"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    value: Mapped[str] = mapped_column(String(50), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
