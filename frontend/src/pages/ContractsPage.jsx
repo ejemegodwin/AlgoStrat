@@ -46,7 +46,7 @@ export default function ContractsPage() {
         {contracts?.map((contract) => (
           <li key={contract.id} className="card">
             <h2>
-              <Link to={`/jobs/${contract.job_id}`}>
+              <Link to={`/contracts/${contract.id}`}>
                 {jobTitles[contract.job_id] ?? `Job #${contract.job_id}`}
               </Link>
             </h2>

@@ -136,6 +136,11 @@ button.secondary {
   color: var(--accent);
 }
 
+button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
 .actions {
   display: flex;
   gap: 8px;

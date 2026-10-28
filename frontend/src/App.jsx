@@ -2,6 +2,7 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { useAuth } from "./auth";
 import RequireAuth from "./components/RequireAuth";
+import ContractDetailPage from "./pages/ContractDetailPage";
 import ContractsPage from "./pages/ContractsPage";
 import JobDetailPage from "./pages/JobDetailPage";
 import JobsPage from "./pages/JobsPage";
@@ -69,6 +70,14 @@ export default function App() {
           element={
             <RequireAuth>
               <ContractsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/contracts/:contractId"
+          element={
+            <RequireAuth>
+              <ContractDetailPage />
             </RequireAuth>
           }
         />
