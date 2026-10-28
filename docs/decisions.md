@@ -3,6 +3,34 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-014: Frontend — client reviews applicants, contracts list (2026-10-28)
+
+Product decisions (owner-approved roadmap, frontend slice 3):
+
+- Application review lives on the job detail page, not a separate
+  screen: the owner reading their own job sees an applicants section
+  where an applicant would see the apply form. Same URL, role decides
+  the section (the API enforces ownership either way).
+- The owner sees the ranked view (`GET /jobs/{id}/applicants/ranked`)
+  with the score factors spelled out — ADR-010's transparency rule
+  applies in the UI too, not just the API. Decided applications show
+  as history below, without names (the application response embeds no
+  worker name; the pending-ranked view is where evaluation happens).
+- Accept is confirm-gated in the UI because it is the one
+  consequential click: it hires, closes the job, rejects the other
+  pending applications, and creates the contract (ADR-001/008). The
+  confirm text says exactly that. Reject needs no confirm — it is a
+  single reversible-in-spirit decision the API already records.
+- Contracts list (`/contracts`) is read-only: both parties see their
+  contracts with role label ("You are the client/worker") and status.
+  Milestones, submit/review, and payouts UI are the next slices; the
+  list links back to the job for context until a contract detail page
+  exists.
+- The client-side job-title join (responses embed `job_id`, not the
+  title) is now shared (`src/jobs.js`) between applications and
+  contracts lists. Still the accepted tradeoff from slice 2 — an
+  API-side embed is the fix if these lists grow.
+
 ## ADR-013: Frontend foundation — Vite + React SPA (2026-10-28)
 
 Product decisions (owner-approved):
