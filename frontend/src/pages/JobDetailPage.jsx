@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
+import ApplicantsSection from "../components/ApplicantsSection";
 
 // The apply form is a section, not a page: applying is something you
 // do while reading the job. Own jobs and closed jobs don't offer it
@@ -93,22 +94,25 @@ function ApplySection({ job }) {
 
 export default function JobDetailPage() {
   const { jobId } = useParams();
+  const { user } = useAuth();
   const [job, setJob] = useState(null);
   const [error, setError] = useState(null);
 
+  // One loader for mount and for refresh-after-accept: the applicant
+  // review below can close the job, and the page should show that.
+  const loadJob = useCallback(() => {
+    return api(`/jobs/${jobId}`).then(setJob);
+  }, [jobId]);
+
   useEffect(() => {
     let cancelled = false;
-    api(`/jobs/${jobId}`)
-      .then((data) => {
-        if (!cancelled) setJob(data);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message);
-      });
+    loadJob().catch((err) => {
+      if (!cancelled) setError(err.message);
+    });
     return () => {
       cancelled = true;
     };
-  }, [jobId]);
+  }, [loadJob]);
 
   if (error) {
     return (
@@ -141,7 +145,11 @@ export default function JobDetailPage() {
         {" · "}Status: {job.status}
       </p>
       <p className="description">{job.description}</p>
-      <ApplySection job={job} />
+      {user && user.id === job.customer_id ? (
+        <ApplicantsSection job={job} onJobChanged={loadJob} />
+      ) : (
+        <ApplySection job={job} />
+      )}
     </main>
   );
 }

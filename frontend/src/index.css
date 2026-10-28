@@ -131,6 +131,24 @@ button.link {
   text-decoration: underline;
 }
 
+button.secondary {
+  background: none;
+  color: var(--accent);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.factors {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .error {
   color: var(--danger);
 }
