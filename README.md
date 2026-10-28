@@ -193,7 +193,7 @@ The next development phase will continue strengthening marketplace workflows bef
 - [x] Accepting and rejecting applications
 - [x] Applicants viewing their own application statuses
 - [x] Application withdrawal with ownership and status checks
-- [ ] React frontend
+- [ ] React frontend (foundation done: register, login, job browsing — ADR-013)
 - [ ] Worker offers and proposals
 - [ ] Hiring and contract workflows
 - [ ] Payments and platform fees

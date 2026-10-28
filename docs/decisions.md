@@ -3,6 +3,36 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-013: Frontend foundation — Vite + React SPA (2026-10-28)
+
+Product decisions (owner-approved):
+
+- Vite + React single-page app in `frontend/`, plain JavaScript (not
+  TypeScript): this is a first frontend for a backend learner, so the
+  fewest new concepts at once. Migrating to TS early is cheap if
+  wanted. FastAPI remains the only server; the SPA talks to it
+  cross-origin (`VITE_API_URL`), which is why CORS exists
+  (`CORS_ORIGINS`, explicit allowlist, never `*`).
+- `react-router-dom` for routing. No state library, no data-fetching
+  library, no component library: one fetch wrapper (`src/api.js`)
+  owns the base URL, the Bearer header, and FastAPI's `{detail}`
+  error shape; auth state lives in one context (`src/auth.jsx`).
+  Adding libraries later is easier than removing them.
+- The JWT is stored in localStorage and sent as a Bearer token.
+  Accepted tradeoff (recorded in `docs/security.md`): any XSS hole
+  exfiltrates the token, so expiry stays short and origins stay
+  narrow. httpOnly cookie auth is the known hardening path and
+  requires no API change beyond CORS credentials.
+- Registration collects name/email/password only (the API sets
+  `account_type` by default); role/profile setup is a later slice.
+  Register-then-login is one flow from the user's perspective.
+- First slice is read-mostly on purpose: job list and detail are
+  public (matching the API), auth pages prove the token flow.
+  Applying, posting jobs, contracts, and payouts UI are later slices.
+- No frontend test runner yet (Vitest when interactions get
+  stateful); verification for this slice was `npm run build` plus a
+  live smoke (vite dev + uvicorn + preflight curl).
+
 ## ADR-012: Payments — simulated provider, charge-at-approval (2026-10-28)
 
 Product decisions (owner-approved):
