@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user_id
 from app.db_session import get_db
-from app.models import Job, JobApplication
+from app.models import Contract, ContractEvent, Job, JobApplication
 from app.schemas import (
     JobApplicationCreate,
     JobApplicationResponse,
@@ -207,6 +207,27 @@ def update_job_application(
             JobApplication.id != application_id,
             JobApplication.status == "pending",
         ).update({"status": "rejected"}, synchronize_session=False)
+
+        # Accepting means hiring (ADR-001), and a hire must always have
+        # its contract (ADR-008): create it in the same transaction so a
+        # failure rolls the whole hire back together.
+        contract = Contract(
+            job_id=job.id,
+            application_id=application.id,
+            client_id=job.customer_id,
+            worker_id=application.applicant_id,
+            agreed_amount=job.budget,
+            currency=job.currency,
+        )
+        db.add(contract)
+        db.flush()  # assign contract.id before writing its first event
+        db.add(
+            ContractEvent(
+                contract_id=contract.id,
+                actor_id=user_id,
+                event_type="contract_created",
+            )
+        )
     else:
         application.status = "rejected"
 

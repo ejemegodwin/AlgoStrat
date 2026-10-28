@@ -192,3 +192,50 @@ class JobApplicationResponse(BaseModel):
 
 class JobApplicationUpdate(BaseModel):
     status: str = Field(pattern="^(accepted|rejected)$")
+
+
+class ContractResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    job_id: int
+    application_id: int
+    client_id: int
+    worker_id: int
+    agreed_amount: Decimal | None
+    currency: str
+    status: str
+    created_at: datetime
+    completed_at: datetime | None
+
+
+class MilestoneResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    contract_id: int
+    title: str
+    description: str | None
+    amount: Decimal | None
+    due_date: datetime | None
+    position: int
+    status: str
+    submission_note: str | None
+    submitted_at: datetime | None
+    reviewed_at: datetime | None
+
+
+class ContractDetailResponse(ContractResponse):
+    milestones: list[MilestoneResponse]
+
+
+class ContractEventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    contract_id: int
+    milestone_id: int | None
+    actor_id: int
+    event_type: str
+    note: str | None
+    created_at: datetime
