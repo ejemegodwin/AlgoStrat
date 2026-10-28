@@ -8,6 +8,7 @@ import JobDetailPage from "./pages/JobDetailPage";
 import JobsPage from "./pages/JobsPage";
 import LoginPage from "./pages/LoginPage";
 import MyApplicationsPage from "./pages/MyApplicationsPage";
+import PayoutsPage from "./pages/PayoutsPage";
 import PostJobPage from "./pages/PostJobPage";
 import RegisterPage from "./pages/RegisterPage";
 
@@ -25,6 +26,7 @@ function Header() {
           <>
             <Link to="/applications">My applications</Link>
             <Link to="/contracts">Contracts</Link>
+            <Link to="/payouts">Payouts</Link>
             <span className="who">{user.full_name}</span>
             <button type="button" className="link" onClick={logout}>
               Log out
@@ -70,6 +72,14 @@ export default function App() {
           element={
             <RequireAuth>
               <ContractsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/payouts"
+          element={
+            <RequireAuth>
+              <PayoutsPage />
             </RequireAuth>
           }
         />
