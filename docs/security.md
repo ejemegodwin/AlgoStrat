@@ -50,6 +50,8 @@
   store (Redis) or proxy-level limiting.
 - No refresh tokens, token revocation list, or email verification yet;
   a stolen valid token works until expiry (keep expiry short).
-- CORS is not configured; add explicit origins when the frontend
-  deployment exists — do not use `allow_origins=["*"]` with credentials.
+- CORS allows only the origins in CORS_ORIGINS (default: the Vite dev
+  server). The SPA stores the bearer token in localStorage, so an XSS
+  hole exfiltrates it — keep expiry short and never widen the
+  allowlist to `*`.
 - Password reset / account recovery flow does not exist yet.
