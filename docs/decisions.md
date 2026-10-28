@@ -3,6 +3,39 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-015: Frontend — contract detail and the milestone loop (2026-10-28)
+
+Product decisions (owner-approved roadmap, frontend slice 4):
+
+- One contract detail page, role-aware: both parties see the same
+  milestones and audit log; the actions offered depend on role and
+  status (client edits pending / reviews submitted / completes or
+  cancels, worker submits and resubmits). As with the apply form, the
+  API enforces every rule — the UI only declines to offer what
+  doesn't apply.
+- Approving a priced milestone asks for a payment token (ADR-012).
+  The label says "token", never "card": with the simulated provider
+  any value succeeds and `tok_fail` exercises the 402 path, which the
+  UI surfaces as "declined, try another" — the milestone stays
+  submitted and the retry is safe (the provider reference is the
+  idempotency key).
+- Complete and cancel are confirm-gated (terminal actions). Complete
+  is additionally disabled while open milestones exist, mirroring the
+  API's OPEN_MILESTONE_STATUSES with a client-side copy that only
+  drives the button state; the API remains the enforcement.
+- The add-milestone form shows "allocated so far / agreed amount" so
+  the budget cap (ADR-008) fails in the form instead of as a 400.
+  Summing is display-only; Decimal math stays server-side.
+- Disputes are deliberately NOT in this UI: raising one freezes the
+  contract and resolution is admin-only (ADR-011), so a "dispute"
+  button today would be a freeze with no visible way out. It lands
+  together with an admin/resolution surface.
+- The audit log (`GET /contracts/{id}/events`) renders verbatim with
+  a label map and a fallback for unknown event types, so a new
+  backend event never renders blank. Actors show as "You" / "The
+  other party" — events embed actor_id, not names, and a contract
+  has exactly two parties.
+
 ## ADR-014: Frontend — client reviews applicants, contracts list (2026-10-28)
 
 Product decisions (owner-approved roadmap, frontend slice 3):
