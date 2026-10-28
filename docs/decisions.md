@@ -3,6 +3,60 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-012: Payments — simulated provider, charge-at-approval (2026-10-28)
+
+Product decisions (owner-approved):
+
+- All provider contact goes behind a port (`charge` / `transfer` /
+  `refund`) in `app/services/payments.py`, selected by
+  `PAYMENT_PROVIDER` (default `simulated`). This increment ships
+  `SimulatedProvider`: deterministic, dedupes by idempotency
+  reference, token `tok_fail` declines charges. A real adapter
+  (Stripe/Paystack) is the only new code once a registered business
+  exists — every money path is tested before real funds move.
+- Funding model: the client is charged AT MILESTONE APPROVAL, never
+  before. The platform never holds client funds — "escrow" is neither
+  claimed nor implemented. Approval calls the provider FIRST; a
+  decline returns 402 and posts nothing (the milestone stays
+  `submitted`). On success the accrual AND the charge settlement post
+  in the same DB transaction: `platform_cash +A`, `client_payable −A`
+  (debt cleared). The worker's receivable stays outstanding until
+  payout — it is cash-backed by definition. A priced approval needs a
+  payment token from the reviewing client (request-supplied); an
+  amountless milestone approves without one, as before.
+- Dual-write safety: the provider idempotency reference IS the
+  accrual's key (`accrual:milestone:{id}`), so a retried approval
+  cannot double-charge; the charge settlement transaction is keyed
+  `settlement:milestone:{id}`.
+- Payouts: any user may withdraw their settled (cash-backed)
+  `worker_receivable` balance via `POST /payouts` (amount optional,
+  defaults to the full balance; `GET /payouts` lists history).
+  Requests serialize with `SELECT ... FOR UPDATE` on the worker's
+  ledger account row, so concurrent payouts cannot double-spend the
+  balance. Settlement: `worker_receivable +P`, `platform_cash −P`,
+  keyed `payout:{id}`. Payout destinations are free-text strings — a
+  real provider tokenizes destinations; card storage remains
+  forbidden.
+- Refunds complete the money loop: a `client_favored` resolution on a
+  CHARGED milestone additionally calls `provider.refund` and posts a
+  reversal of the charge settlement in the same transaction, clearing
+  the refund claim the accrual reversal created (all balances return
+  to zero). Milestones approved before this increment have no charge
+  settlement; their reversal stands alone (no money moved originally).
+- Dispute force-approval (`worker_favored`) posts the accrual ONLY:
+  the client never approved, so there is no payment token to charge.
+  `client_payable` stays outstanding — adjudicated, owed, uncollected.
+  Collecting it arrives with stored payment methods (provider customer
+  ids — never PANs) in the real-adapter increment.
+- Provider processing fees are NOT modeled yet (the simulated provider
+  charges none); a real adapter will add a `platform_cost` account
+  type.
+- Webhooks/async: designed, not built. Charges are synchronous with
+  the simulated provider; a real adapter introduces pending states
+  (approval → payment pending → webhook success/failure → settlement
+  posts) and a `webhook_events` table for verified, idempotent
+  processing. The ledger's idempotency keys are already shaped for it.
+
 ## ADR-011: Disputes and ledger reversals (2026-10-28)
 
 Product decisions (owner-approved):
