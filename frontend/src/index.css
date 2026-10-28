@@ -86,13 +86,26 @@ form label {
   font-size: 0.9rem;
 }
 
-input {
+input,
+textarea,
+select {
   padding: 8px 10px;
   font: inherit;
   color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 6px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: end;
 }
 
 button {
