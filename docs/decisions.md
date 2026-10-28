@@ -3,6 +3,37 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-017: Dispute raising UI + admin resolution surface (2026-10-28)
+
+Product decisions (owner-approved):
+
+- The admin queue (`GET /admin/disputes`) now returns
+  `AdminDisputeResponse`: the dispute plus job title, contract
+  status/amount/currency, milestone summary, and all three names.
+  The admin decides without being a party — the party endpoints would
+  403 for them — so this endpoint deliberately crosses the party
+  boundary. Admin-only keeps that contained; party endpoints keep the
+  lean `DisputeResponse`.
+- `UserResponse` carries `is_admin` so the SPA can surface the admin
+  nav/page. This is presentation only; `get_current_admin_id` remains
+  the enforcement on every admin endpoint. Granting admin stays
+  manual SQL — right-sized for a solo-operated product.
+- The contract page gains the dispute UI ADR-015 deferred: either
+  party can raise (reason ≥ 20 chars, optional milestone reference),
+  confirm-gated with the freeze spelled out, since raising makes
+  every other action on the page vanish. A disputed contract shows a
+  banner explaining the pause, and both parties see the resolution
+  and its note once resolved.
+- The resolution form states each outcome's consequences inline
+  (worker_favored force-approves and accrues; client_favored cancels,
+  reverses, and refunds a charged milestone; dismissed resumes
+  unchanged) and the confirm restates them — resolving moves money,
+  so nobody clicks it on a guess.
+- Verified: 189 unit + 2 Postgres integration tests (run against the
+  Neon dev branch), plus a live smoke of all three outcomes including
+  the refund math (charged 60 → client_favored → receivable and
+  payable both back to 0.00).
+
 ## ADR-016: Frontend — payouts (2026-10-28)
 
 Product decisions (owner-approved roadmap, frontend slice 5):
