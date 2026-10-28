@@ -3,6 +3,41 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-009: Payment ledger — accrual only, double-entry (2026-10-28)
+
+Product decisions (owner-approved):
+
+- The ledger is an internal financial model only: it records who owes
+  what to whom. No real money moves, no provider integration, no card
+  storage, and the word "escrow" is never claimed.
+- Double-entry bookkeeping: every transaction's entries sum to zero;
+  balances are always derived (SUM of entries), never stored.
+  Accounts: `client_payable`, `worker_receivable` (per user+currency),
+  `platform_revenue`, `platform_cash` (platform-wide; cash is dormant
+  until a provider exists).
+- Accrual posts when a milestone is approved (work accepted = value
+  earned), inside the same DB transaction and contract row lock as the
+  approval, so a review can never half-post. Amountless milestones
+  accrue nothing.
+- Platform fee is configurable via `PLATFORM_FEE_PERCENT` (default 0):
+  the client is debited the full amount; the worker is credited the
+  amount minus fee; the fee is credited to platform revenue. Fee
+  rounds HALF_UP to 2dp; the worker receives the remainder, so
+  entries always balance exactly. Zero-fee accruals omit the fee
+  entry (CHECK forbids amount = 0).
+- Scope of this increment: accrual + read-only balances. No manual
+  "mark as paid" — unverifiable payment claims are the scam vector
+  the ledger exists to prevent. Settlement arrives with a provider.
+- Reversals: corrections only ever happen via mirror-image reversal
+  transactions (never edits or deletes). Mechanism specified here,
+  implemented with the disputes increment, which owns the policy.
+- Idempotency: every ledger transaction carries a unique
+  `idempotency_key` (`accrual:milestone:{id}` for approvals), so
+  retries — API or future provider webhooks — cannot double-post.
+- API presentation: each account is reported by its natural balance
+  (debit-normal accounts as SUM, credit-normal as −SUM), so users see
+  non-negative "owed"/"earned" figures under normal operation.
+
 ## ADR-008: Contracts and milestones (2026-10-28)
 
 Product decisions (owner-approved):
