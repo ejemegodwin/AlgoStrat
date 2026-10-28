@@ -105,3 +105,20 @@ def get_current_user_id(
         )
 
     return user.id
+
+
+def get_current_admin_id(
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> int:
+    """Dispute resolution is admin-only (ADR-011). Admins are ordinary
+    users with `is_admin` set, seeded manually via SQL."""
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if user is None or not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required.",
+        )
+
+    return user_id

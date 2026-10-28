@@ -390,3 +390,41 @@ class RankedApplicant(BaseModel):
     worker_name: str
     score: float
     factors: dict[str, RecommendationFactor]
+
+
+class DisputeRaise(BaseModel):
+    reason: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=20, max_length=5000),
+    ]
+    milestone_id: int | None = None
+
+
+class DisputeResolve(BaseModel):
+    resolution: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            pattern="^(worker_favored|client_favored|dismissed)$",
+        ),
+    ]
+    note: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=10, max_length=5000),
+    ]
+
+
+class DisputeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    contract_id: int
+    milestone_id: int | None
+    raised_by: int
+    reason: str
+    status: str
+    resolution: str | None
+    resolution_note: str | None
+    resolved_by: int | None
+    created_at: datetime
+    resolved_at: datetime | None

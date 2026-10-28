@@ -35,6 +35,10 @@ class User(Base):
     account_type: Mapped[str] = mapped_column(
         String(20), default="individual", nullable=False
     )
+    # Platform arbiter for dispute resolution (ADR-011); seeded manually.
+    is_admin: Mapped[bool] = mapped_column(
+        nullable=False, default=False, server_default=text("false")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -128,7 +132,7 @@ class Contract(Base):
         UniqueConstraint("job_id", name="uq_contracts_job"),
         UniqueConstraint("application_id", name="uq_contracts_application"),
         CheckConstraint(
-            "status IN ('active', 'completed', 'cancelled')",
+            "status IN ('active', 'completed', 'cancelled', 'disputed')",
             name="ck_contracts_status",
         ),
     )
@@ -344,6 +348,62 @@ class LedgerEntry(Base):
 
     transaction: Mapped["LedgerTransaction"] = relationship(
         back_populates="entries"
+    )
+
+
+class Dispute(Base):
+    """A raised disagreement on a contract (ADR-011). While one is open
+    the contract is frozen in `disputed` status."""
+
+    __tablename__ = "disputes"
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('open', 'resolved')", name="ck_disputes_status"
+        ),
+        CheckConstraint(
+            "resolution IS NULL OR resolution IN "
+            "('worker_favored', 'client_favored', 'dismissed')",
+            name="ck_disputes_resolution",
+        ),
+        # At most one open dispute per contract (ADR-011), enforced by
+        # the database even if application logic regresses.
+        Index(
+            "uq_disputes_one_open_per_contract",
+            "contract_id",
+            unique=True,
+            sqlite_where=text("status = 'open'"),
+            postgresql_where=text("status = 'open'"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    contract_id: Mapped[int] = mapped_column(
+        ForeignKey("contracts.id"), nullable=False, index=True
+    )
+    # SET NULL so the dispute record survives deletion of the milestone.
+    milestone_id: Mapped[int | None] = mapped_column(
+        ForeignKey("milestones.id", ondelete="SET NULL"), nullable=True
+    )
+    raised_by: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="open"
+    )
+    resolution: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolved_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
 

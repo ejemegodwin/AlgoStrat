@@ -8,12 +8,14 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user_id
 from app.db_session import get_db
-from app.models import Contract, ContractEvent, Milestone
+from app.models import Contract, ContractEvent, Dispute, Milestone
 from app.services import ledger as ledger_service
 from app.schemas import (
     ContractDetailResponse,
     ContractEventResponse,
     ContractResponse,
+    DisputeRaise,
+    DisputeResponse,
     MilestoneCreate,
     MilestoneResponse,
     MilestoneReview,
@@ -458,3 +460,86 @@ def cancel_contract(
     commit_or_503(db)
     db.refresh(contract)
     return contract
+
+
+@router.post(
+    "/contracts/{contract_id}/disputes",
+    response_model=DisputeResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def raise_dispute(
+    contract_id: int,
+    dispute_data: DisputeRaise,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    contract = load_contract(contract_id, db, for_update=True)
+    require_party(contract, user_id)
+
+    # Only active contracts can be disputed; a disputed contract
+    # rejects a second raise here, and the partial unique index on
+    # disputes is the database-level backstop for races (ADR-011).
+    if contract.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only active contracts can be disputed.",
+        )
+
+    if dispute_data.milestone_id is not None:
+        milestone = (
+            db.query(Milestone)
+            .filter(
+                Milestone.id == dispute_data.milestone_id,
+                Milestone.contract_id == contract.id,
+            )
+            .first()
+        )
+        if milestone is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="That milestone does not belong to this contract.",
+            )
+
+    dispute = Dispute(
+        contract_id=contract.id,
+        milestone_id=dispute_data.milestone_id,
+        raised_by=user_id,
+        reason=dispute_data.reason,
+    )
+    db.add(dispute)
+    db.flush()
+    # Freezing is automatic from here: every mutation path requires
+    # the contract to be active (ADR-008).
+    contract.status = "disputed"
+    record_event(
+        db,
+        contract.id,
+        user_id,
+        "dispute_raised",
+        milestone_id=dispute_data.milestone_id,
+        note=dispute_data.reason,
+    )
+
+    commit_or_503(db)
+    db.refresh(dispute)
+    return dispute
+
+
+@router.get(
+    "/contracts/{contract_id}/disputes",
+    response_model=list[DisputeResponse],
+)
+def list_contract_disputes(
+    contract_id: int,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    contract = load_contract(contract_id, db)
+    require_party(contract, user_id)
+
+    return (
+        db.query(Dispute)
+        .filter(Dispute.contract_id == contract_id)
+        .order_by(Dispute.created_at.asc(), Dispute.id.asc())
+        .all()
+    )

@@ -145,6 +145,51 @@ def post_accrual(
     return transaction
 
 
+def post_reversal(
+    db: Session,
+    *,
+    original: LedgerTransaction,
+    actor_id: int,
+    note: str | None = None,
+) -> LedgerTransaction:
+    """Wipe a transaction's financial effect with a mirror-image
+    reversal (ADR-009/ADR-011): same accounts, negated amounts, so the
+    books still sum to zero and history is never rewritten. Runs inside
+    the caller's transaction. Idempotent via the original-scoped key —
+    a retried resolution returns the same reversal instead of
+    double-reversing."""
+    idempotency_key = f"reversal:{original.id}"
+    existing = (
+        db.query(LedgerTransaction)
+        .filter(LedgerTransaction.idempotency_key == idempotency_key)
+        .first()
+    )
+    if existing is not None:
+        return existing
+
+    reversal = LedgerTransaction(
+        contract_id=original.contract_id,
+        milestone_id=original.milestone_id,
+        type="reversal",
+        idempotency_key=idempotency_key,
+        created_by=actor_id,
+        note=note or f"Reversal of {original.type} transaction #{original.id}.",
+    )
+    db.add(reversal)
+    db.flush()
+
+    for entry in original.entries:
+        db.add(
+            LedgerEntry(
+                transaction_id=reversal.id,
+                account_id=entry.account_id,
+                amount=-entry.amount,
+            )
+        )
+
+    return reversal
+
+
 def natural_balance(account_type: str, entries_total: Decimal) -> Decimal:
     """Report an account's position as a non-negative figure under
     normal operation: SUM for debit-normal accounts, -SUM for
