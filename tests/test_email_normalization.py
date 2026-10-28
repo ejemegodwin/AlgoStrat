@@ -5,6 +5,7 @@ def test_registration_normalizes_email_case(client):
             "full_name": "Case Test User",
             "email": "Case.Test@Example.COM",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
 
@@ -19,6 +20,7 @@ def test_duplicate_email_is_detected_regardless_of_case(client):
             "full_name": "First User",
             "email": "shared@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     second_response = client.post(
@@ -27,6 +29,7 @@ def test_duplicate_email_is_detected_regardless_of_case(client):
             "full_name": "Second User",
             "email": "SHARED@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
 
@@ -44,6 +47,7 @@ def test_login_works_regardless_of_email_case(client):
             "full_name": "Login Case User",
             "email": "logincase@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     assert register_response.status_code == 201

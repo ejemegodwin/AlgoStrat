@@ -1,6 +1,6 @@
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 
-import { useAuth } from "./auth";
+import { useAuth, CLIENT_SIDE, WORKER_SIDE } from "./auth";
 import RequireAuth from "./components/RequireAuth";
 import AdminDisputesPage from "./pages/AdminDisputesPage";
 import ContractDetailPage from "./pages/ContractDetailPage";
@@ -22,10 +22,14 @@ function Header() {
         AlgoStrat
       </Link>
       <nav>
-        <Link to="/jobs/new">Post a job</Link>
         {loading ? null : user ? (
           <>
-            <Link to="/applications">My applications</Link>
+            {CLIENT_SIDE.includes(user.account_type) && (
+              <Link to="/jobs/new">Post a job</Link>
+            )}
+            {WORKER_SIDE.includes(user.account_type) && (
+              <Link to="/applications">My applications</Link>
+            )}
             <Link to="/contracts">Contracts</Link>
             <Link to="/payouts">Payouts</Link>
             {user.is_admin && <Link to="/admin/disputes">Disputes</Link>}

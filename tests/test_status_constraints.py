@@ -33,6 +33,7 @@ def create_user(db_session, email):
         full_name="Test User",
         email=email,
         password_hash="test-hash",
+        account_type="both",
     )
     db_session.add(user)
     db_session.flush()

@@ -107,6 +107,32 @@ def get_current_user_id(
     return user.id
 
 
+def get_current_user(
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> User:
+    # get_current_user_id has already established the user exists.
+    return db.query(User).filter(User.id == user_id).first()
+
+
+# Marketplace sides (ADR-018): account_type gates who may act on which
+# side. "both" is a full member of each side.
+CLIENT_SIDE = ("client", "both")
+WORKER_SIDE = ("worker", "both")
+
+
+def require_side(user: User, side: tuple[str, ...], action: str) -> None:
+    """403 unless the account's side may perform the action. Kept as a
+    plain function (not a dependency) so call sites read as rules:
+    `require_side(user, CLIENT_SIDE, "post jobs")`."""
+    if user.account_type not in side:
+        label = "client" if side is CLIENT_SIDE else "worker"
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Only {label} accounts can {action}.",
+        )
+
+
 def get_current_admin_id(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),

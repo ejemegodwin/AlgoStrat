@@ -24,13 +24,15 @@ def test_register_user_successfully(client):
             "full_name": "New Test User",
             "email": "newtest@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
 
     assert response.status_code == 201
     assert response.json()["full_name"] == "New Test User"
     assert response.json()["email"] == "newtest@example.com"
-    assert response.json()["account_type"] == "individual"
+    # The registered side comes back verbatim — there is no default.
+    assert response.json()["account_type"] == "both"
     assert "password" not in response.json()
     assert "password_hash" not in response.json()
 
@@ -40,6 +42,7 @@ def test_register_user_with_existing_email(client):
         "full_name": "Duplicate Test User",
         "email": "duplicate@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     first_response = client.post("/auth/register", json=user_data)
@@ -59,6 +62,7 @@ def test_register_user_with_short_password(client):
             "full_name": "Short Password User",
             "email": "shortpass@example.com",
             "password": "short",
+            "account_type": "both",
         },
     )
 
@@ -70,6 +74,7 @@ def test_login_user_successfully(client):
         "full_name": "Login Test User",
         "email": "login@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -97,6 +102,7 @@ def test_login_user_with_wrong_password(client):
             "full_name": "Wrong Password User",
             "email": "wrongpass@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
 
@@ -145,6 +151,7 @@ def test_profile_with_valid_token(client):
         "full_name": "Token Test User",
         "email": "token-test@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -165,7 +172,7 @@ def test_profile_with_valid_token(client):
     assert response.json()["id"] == user_id
     assert response.json()["full_name"] == user_data["full_name"]
     assert response.json()["email"] == user_data["email"]
-    assert response.json()["account_type"] == "individual"
+    assert response.json()["account_type"] == user_data["account_type"]
 
 def test_profile_with_invalid_token_returns_401(client):
     response = client.get(
@@ -192,6 +199,7 @@ def test_create_job_successfully(client):
         "full_name": "Job Test User",
         "email": "jobtest@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -239,6 +247,7 @@ def test_list_jobs_successfully(client):
         "full_name": "Job Listing User",
         "email": "joblisting@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -274,6 +283,7 @@ def test_get_job_successfully(client):
         "full_name": "Job Details User",
         "email": "jobdetails@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -314,6 +324,7 @@ def test_close_own_job_successfully(client):
         "full_name": "Job Owner User",
         "email": "jobowner@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -349,6 +360,7 @@ def test_user_cannot_close_another_users_job(client):
         "full_name": "Original Job Owner",
         "email": "originalowner@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     owner_response = client.post(
@@ -374,6 +386,7 @@ def test_user_cannot_close_another_users_job(client):
         "full_name": "Another User",
         "email": "anotheruser@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     other_user_response = client.post(
@@ -402,6 +415,7 @@ def test_update_own_job_successfully(client):
         "full_name": "Job Editor",
         "email": "jobeditor@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -438,6 +452,7 @@ def test_user_cannot_update_another_users_job(client):
         "full_name": "Original Job Owner",
         "email": "editowner@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     owner_response = client.post(
@@ -463,6 +478,7 @@ def test_user_cannot_update_another_users_job(client):
         "full_name": "Another User",
         "email": "editother@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     other_response = client.post(
@@ -486,6 +502,7 @@ def test_cannot_update_closed_job(client):
         "full_name": "Closed Job Owner",
         "email": "closedjobowner@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -528,6 +545,7 @@ def test_update_job_rejects_empty_request(client):
         "full_name": "Empty Update User",
         "email": "emptyupdate@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -564,6 +582,7 @@ def test_update_job_rejects_null_title(client):
         "full_name": "Null Title User",
         "email": "nulltitle@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -603,6 +622,7 @@ def test_create_job_database_failure_returns_generic_error(client, monkeypatch):
         "full_name": "Database Failure User",
         "email": "dbfailure@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post("/auth/register", json=user_data)
@@ -642,6 +662,7 @@ def test_update_job_database_failure_returns_generic_error(
         "full_name": "Update Failure User",
         "email": "updatefailure@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -694,6 +715,7 @@ def test_close_job_database_failure_returns_generic_error(
         "full_name": "Close Failure User",
         "email": "closefailure@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
 
     register_response = client.post(
@@ -742,6 +764,7 @@ def test_list_jobs_supports_pagination(client):
             "full_name": "Pagination User",
             "email": "pagination@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     user_id = register_response.json()["id"]
@@ -801,6 +824,7 @@ def test_list_jobs_filters_by_keyword(client):
             "full_name": "Search User",
             "email": "search@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     user_id = register_response.json()["id"]
@@ -845,6 +869,7 @@ def test_list_jobs_filters_by_currency(client):
             "full_name": "Currency User",
             "email": "currency@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     user_id = register_response.json()["id"]
@@ -889,6 +914,7 @@ def test_list_jobs_filters_by_budget_range(client):
             "full_name": "Budget User",
             "email": "budget@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     user_id = register_response.json()["id"]
@@ -951,6 +977,7 @@ def test_list_jobs_filters_by_category(client):
             "full_name": "Category Search User",
             "email": "categorysearch@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     user_id = register_response.json()["id"]
@@ -995,6 +1022,7 @@ def test_list_jobs_filters_by_location(client):
             "full_name": "Location Search User",
             "email": "locationsearch@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     user_id = register_response.json()["id"]
@@ -1038,6 +1066,7 @@ def test_worker_can_apply_for_open_job(client):
         "full_name": "Job Owner",
         "email": "jobowner@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
     owner_response = client.post("/auth/register", json=owner_data)
     owner_id = owner_response.json()["id"]
@@ -1060,6 +1089,7 @@ def test_worker_can_apply_for_open_job(client):
         "full_name": "Job Applicant",
         "email": "applicant@example.com",
         "password": "SecurePass123!",
+        "account_type": "both",
     }
     worker_response = client.post("/auth/register", json=worker_data)
     worker_id = worker_response.json()["id"]
@@ -1091,6 +1121,7 @@ def test_worker_cannot_apply_for_same_job_twice(client):
             "full_name": "Duplicate Test Owner",
             "email": "duplicate-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1111,6 +1142,7 @@ def test_worker_cannot_apply_for_same_job_twice(client):
             "full_name": "Duplicate Test Worker",
             "email": "duplicate-worker@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     worker_token = create_access_token(worker_response.json()["id"])
@@ -1147,6 +1179,7 @@ def test_job_owner_cannot_apply_for_own_job(client):
             "full_name": "Self Apply Owner",
             "email": "self-apply-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_id = owner_response.json()["id"]
@@ -1185,6 +1218,7 @@ def test_worker_cannot_apply_for_closed_job(client):
             "full_name": "Closed Job Owner",
             "email": "closed-job-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_id = owner_response.json()["id"]
@@ -1212,6 +1246,7 @@ def test_worker_cannot_apply_for_closed_job(client):
             "full_name": "Closed Job Worker",
             "email": "closed-job-worker@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     worker_token = create_access_token(worker_response.json()["id"])
@@ -1239,6 +1274,7 @@ def test_applying_for_job_requires_authentication(client):
             "full_name": "Authentication Test Owner",
             "email": "application-auth-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1272,6 +1308,7 @@ def test_job_owner_can_view_applications(client):
             "full_name": "Application List Owner",
             "email": "application-list-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_id = owner_response.json()["id"]
@@ -1293,6 +1330,7 @@ def test_job_owner_can_view_applications(client):
             "full_name": "Application List Worker",
             "email": "application-list-worker@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     worker_id = worker_response.json()["id"]
@@ -1328,6 +1366,7 @@ def test_user_cannot_view_another_users_job_applications(client):
             "full_name": "Private Applications Owner",
             "email": "private-applications-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1348,6 +1387,7 @@ def test_user_cannot_view_another_users_job_applications(client):
             "full_name": "Unauthorized Viewer",
             "email": "unauthorized-viewer@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     other_user_token = create_access_token(
@@ -1372,6 +1412,7 @@ def test_viewing_job_applications_requires_authentication(client):
             "full_name": "Authentication Owner",
             "email": "view-applications-auth-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1398,6 +1439,7 @@ def test_viewing_applications_for_nonexistent_job_returns_404(client):
             "full_name": "Missing Job Viewer",
             "email": "missing-job-viewer@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     user_token = create_access_token(user_response.json()["id"])
@@ -1418,6 +1460,7 @@ def test_job_owner_gets_empty_list_when_no_applications_exist(client):
             "full_name": "No Applications Owner",
             "email": "no-applications-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1448,6 +1491,7 @@ def test_job_owner_can_accept_application(client):
             "full_name": "Accept Application Owner",
             "email": "accept-application-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_id = owner_response.json()["id"]
@@ -1469,6 +1513,7 @@ def test_job_owner_can_accept_application(client):
             "full_name": "Accept Application Worker",
             "email": "accept-application-worker@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     worker_id = worker_response.json()["id"]
@@ -1504,6 +1549,7 @@ def test_job_owner_can_reject_application(client):
             "full_name": "Reject Application Owner",
             "email": "reject-application-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_id = owner_response.json()["id"]
@@ -1525,6 +1571,7 @@ def test_job_owner_can_reject_application(client):
             "full_name": "Reject Application Worker",
             "email": "reject-application-worker@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     worker_token = create_access_token(worker_response.json()["id"])
@@ -1559,6 +1606,7 @@ def test_non_owner_cannot_update_job_application(client):
             "full_name": "Private Job Owner",
             "email": "private-job-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1579,6 +1627,7 @@ def test_non_owner_cannot_update_job_application(client):
             "full_name": "Private Job Worker",
             "email": "private-job-worker@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     worker_token = create_access_token(worker_response.json()["id"])
@@ -1601,6 +1650,7 @@ def test_non_owner_cannot_update_job_application(client):
             "full_name": "Unrelated User",
             "email": "unrelated-job-user@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     outsider_token = create_access_token(outsider_response.json()["id"])
@@ -1632,6 +1682,7 @@ def test_job_application_rejects_invalid_status(client):
             "full_name": "Invalid Status Owner",
             "email": "invalid-status-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1652,6 +1703,7 @@ def test_job_application_rejects_invalid_status(client):
             "full_name": "Invalid Status Worker",
             "email": "invalid-status-worker@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     worker_token = create_access_token(worker_response.json()["id"])
@@ -1684,6 +1736,7 @@ def test_decided_application_cannot_be_updated_again(client):
             "full_name": "Decided Application Owner",
             "email": "decided-application-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1704,6 +1757,7 @@ def test_decided_application_cannot_be_updated_again(client):
             "full_name": "Decided Application Worker",
             "email": "decided-application-worker@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     worker_token = create_access_token(worker_response.json()["id"])
@@ -1746,6 +1800,7 @@ def test_applicant_can_view_own_applications(client):
             "full_name": "Application Test Owner",
             "email": "my-app-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1767,6 +1822,7 @@ def test_applicant_can_view_own_applications(client):
             "full_name": "Application Test Applicant",
             "email": "my-applicant@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     applicant_id = applicant_response.json()["id"]
@@ -1802,6 +1858,7 @@ def test_applicant_cannot_view_another_users_applications(client):
             "full_name": "First Applicant",
             "email": "first-applicant@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     first_token = create_access_token(first_response.json()["id"])
@@ -1812,6 +1869,7 @@ def test_applicant_cannot_view_another_users_applications(client):
             "full_name": "Second Applicant",
             "email": "second-applicant@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     second_token = create_access_token(second_response.json()["id"])
@@ -1832,6 +1890,7 @@ def test_applicant_with_no_applications_gets_empty_list(client):
             "full_name": "No Applications User",
             "email": "no-applications@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     user_token = create_access_token(user_response.json()["id"])
@@ -1856,6 +1915,7 @@ def test_applicant_can_withdraw_own_pending_application(client):
             "full_name": "Withdrawal Owner",
             "email": "withdraw-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1876,6 +1936,7 @@ def test_applicant_can_withdraw_own_pending_application(client):
             "full_name": "Withdrawal Applicant",
             "email": "withdraw-applicant@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     applicant_token = create_access_token(
@@ -1916,6 +1977,7 @@ def test_applicant_cannot_withdraw_another_users_application(client):
             "full_name": "Protected Job Owner",
             "email": "protected-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -1936,6 +1998,7 @@ def test_applicant_cannot_withdraw_another_users_application(client):
             "full_name": "Original Applicant",
             "email": "original-applicant@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     applicant_token = create_access_token(
@@ -1959,6 +2022,7 @@ def test_applicant_cannot_withdraw_another_users_application(client):
             "full_name": "Different Applicant",
             "email": "different-applicant@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     other_token = create_access_token(other_response.json()["id"])
@@ -1981,6 +2045,7 @@ def test_applicant_cannot_withdraw_decided_application(client):
             "full_name": "Decision Owner",
             "email": "decision-owner@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     owner_token = create_access_token(owner_response.json()["id"])
@@ -2001,6 +2066,7 @@ def test_applicant_cannot_withdraw_decided_application(client):
             "full_name": "Decision Applicant",
             "email": "decision-applicant@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     applicant_token = create_access_token(

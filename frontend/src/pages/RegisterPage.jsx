@@ -9,6 +9,9 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // No default side (ADR-018): registration must be a real choice,
+  // because the side decides what the account may do.
+  const [side, setSide] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -17,7 +20,7 @@ export default function RegisterPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await register(fullName, email, password);
+      await register(fullName, email, password, side);
       navigate("/jobs");
     } catch (err) {
       setError(err.message);
@@ -61,6 +64,21 @@ export default function RegisterPage() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
+        </label>
+        <label>
+          I want to
+          <select
+            required
+            value={side}
+            onChange={(event) => setSide(event.target.value)}
+          >
+            <option value="" disabled>
+              Choose…
+            </option>
+            <option value="worker">Work — apply to jobs</option>
+            <option value="client">Hire — post jobs</option>
+            <option value="both">Both</option>
+          </select>
         </label>
         {error && <p className="error">{error}</p>}
         <button type="submit" disabled={submitting}>

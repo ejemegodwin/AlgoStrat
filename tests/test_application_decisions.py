@@ -12,6 +12,7 @@ def register(client, full_name, email):
             "full_name": full_name,
             "email": email,
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     assert response.status_code == 201

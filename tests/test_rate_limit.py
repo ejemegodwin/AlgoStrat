@@ -5,6 +5,7 @@ def register(client, email):
             "full_name": "Rate Limit User",
             "email": email,
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
 

@@ -3,6 +3,37 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-018: account_type becomes the marketplace side (2026-10-28)
+
+Product decisions (owner-approved):
+
+- `account_type` now means the marketplace side: `client` posts jobs,
+  `worker` applies and keeps a worker profile, `both` does both. The
+  column existed as a free string defaulting to `'individual'` that
+  gated nothing — repurposed rather than replaced, because it was
+  exactly this concept sitting unused.
+- Registration requires the choice; there is no default. The old
+  default silently granted every capability, so defaulting the side
+  would recreate that under a new name. Unknown values are rejected
+  by the schema pattern and the DB CHECK constraint
+  (`ck_users_account_type`).
+- Existing accounts are backfilled to `both` BEFORE the constraint is
+  added: they could already do everything, so the backfill preserves
+  capabilities instead of silently taking a side away.
+- Enforcement is at the API: `require_side(user, side, action)` in
+  `app/core/security.py`, a plain function so call sites read as
+  rules (`require_side(user, CLIENT_SIDE, "post jobs")`). `both` is a
+  full member of each side. Gated: job creation (client), applying,
+  recommendations, and the worker-profile upsert (worker). The CHECK
+  constraint is defense in depth.
+- Contracts, payouts, and disputes are deliberately NOT side-gated:
+  they are already party-scoped — you are on a contract because you
+  are its client or worker, whatever your account type says.
+- The SPA mirrors the sides with its own `CLIENT_SIDE`/`WORKER_SIDE`
+  copies (register page side picker with no preselection, nav links,
+  apply section, post-job page). As with ADR-015, the copies only
+  decide what the UI offers; the API enforces.
+
 ## ADR-017: Dispute raising UI + admin resolution surface (2026-10-28)
 
 Product decisions (owner-approved):

@@ -11,6 +11,12 @@ const TOKEN_KEY = "algostrat_token";
 
 const AuthContext = createContext(null);
 
+// Marketplace sides (ADR-018), mirroring the backend constants in
+// app/core/security.py. The API enforces; these only decide what the
+// UI offers.
+export const CLIENT_SIDE = ["client", "both"];
+export const WORKER_SIDE = ["worker", "both"];
+
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() =>
     localStorage.getItem(TOKEN_KEY),
@@ -57,10 +63,10 @@ export function AuthProvider({ children }) {
     setToken(data.access_token);
   }
 
-  async function register(fullName, email, password) {
+  async function register(fullName, email, password, accountType) {
     await api("/auth/register", {
       method: "POST",
-      body: { full_name: fullName, email, password },
+      body: { full_name: fullName, email, password, account_type: accountType },
     });
     // Registration does not return a token, so log in right after —
     // one flow from the user's point of view.

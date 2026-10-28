@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { api, ApiError } from "../api";
-import { useAuth } from "../auth";
+import { useAuth, WORKER_SIDE } from "../auth";
 import ApplicantsSection from "../components/ApplicantsSection";
 
 // The apply form is a section, not a page: applying is something you
@@ -28,6 +28,16 @@ function ApplySection({ job }) {
   }
   if (user.id === job.customer_id || job.status !== "open") {
     return null;
+  }
+  // The API returns 403 for client-only accounts; saying so up front
+  // beats a failed form submit.
+  if (!WORKER_SIDE.includes(user.account_type)) {
+    return (
+      <p className="meta">
+        Only worker accounts can apply for jobs. Your account is set up
+        for hiring.
+      </p>
+    );
   }
   if (outcome === "applied") {
     return (

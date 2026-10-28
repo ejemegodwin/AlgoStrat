@@ -8,6 +8,7 @@ def create_user_headers(client, email="currency-owner@example.com"):
             "full_name": "Currency Test User",
             "email": email,
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     assert response.status_code == 201

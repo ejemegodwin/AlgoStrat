@@ -19,6 +19,7 @@ def test_like_wildcards_in_keyword_match_literally(client):
             "full_name": "Wildcard Search User",
             "email": "wildcard-search@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     user_id = register_response.json()["id"]
@@ -58,6 +59,7 @@ def test_like_underscore_in_keyword_matches_literally(client):
             "full_name": "Underscore Search User",
             "email": "underscore-search@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     user_id = register_response.json()["id"]

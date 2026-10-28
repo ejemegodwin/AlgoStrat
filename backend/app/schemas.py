@@ -66,6 +66,9 @@ class UserCreate(BaseModel):
     # Passwords must never be whitespace-stripped: every character is
     # part of the secret and is hashed exactly as entered.
     password: str = Field(min_length=8, max_length=128)
+    # The marketplace side (ADR-018). Required — no silent default,
+    # because the default used to grant everything.
+    account_type: str = Field(pattern="^(client|worker|both)$")
 
     @field_validator("email")
     @classmethod

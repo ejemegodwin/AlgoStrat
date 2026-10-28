@@ -24,6 +24,13 @@ class Base(DeclarativeBase):
 class User(Base):
     __tablename__ = "users"
 
+    __table_args__ = (
+        CheckConstraint(
+            "account_type IN ('client', 'worker', 'both')",
+            name="ck_users_account_type",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
     email: Mapped[str] = mapped_column(
@@ -32,9 +39,10 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(
         String(255), nullable=False
     )
-    account_type: Mapped[str] = mapped_column(
-        String(20), default="individual", nullable=False
-    )
+    # Marketplace side (ADR-018): client posts jobs, worker applies,
+    # both do both. No default on purpose — every account picks a side
+    # explicitly at registration.
+    account_type: Mapped[str] = mapped_column(String(20), nullable=False)
     # Platform arbiter for dispute resolution (ADR-011); seeded manually.
     is_admin: Mapped[bool] = mapped_column(
         nullable=False, default=False, server_default=text("false")

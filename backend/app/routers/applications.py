@@ -2,7 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_user_id
+from app.core.security import (
+    WORKER_SIDE,
+    get_current_user,
+    get_current_user_id,
+    require_side,
+)
 from app.db_session import get_db
 from app.models import Contract, ContractEvent, Job, JobApplication, User
 from app.schemas import (
@@ -24,9 +29,11 @@ router = APIRouter(tags=["applications"])
 def apply_for_job(
     job_id: int,
     application_data: JobApplicationCreate,
-    user_id: int = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_side(user, WORKER_SIDE, "apply to jobs")
+    user_id = user.id
     # Lock the job row so an accept/close cannot commit between the
     # open-status check and the insert of this application.
     job = (

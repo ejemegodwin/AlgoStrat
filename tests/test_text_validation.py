@@ -8,6 +8,7 @@ def register(client, email):
             "full_name": "Text Validation User",
             "email": email,
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     assert response.status_code == 201
@@ -31,6 +32,7 @@ def test_registration_rejects_whitespace_only_name(client):
             "full_name": "   ",
             "email": "whitespace-name@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
 
@@ -44,6 +46,7 @@ def test_registration_trims_full_name(client):
             "full_name": "  Padded Name  ",
             "email": "padded-name@example.com",
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
 
@@ -58,6 +61,7 @@ def test_password_is_never_whitespace_stripped(client):
             "full_name": "Spaced Password User",
             "email": "spaced-password@example.com",
             "password": "  SecurePass123!  ",
+            "account_type": "both",
         },
     )
     assert register_response.status_code == 201

@@ -4,9 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_user_id
+from app.core.security import (
+    CLIENT_SIDE,
+    WORKER_SIDE,
+    get_current_user,
+    get_current_user_id,
+    require_side,
+)
 from app.db_session import get_db
-from app.models import Job, JobApplication
+from app.models import Job, JobApplication, User
 from app.schemas import JobCreate, JobRecommendation, JobResponse, JobUpdate
 from app.services import matching as matching_service
 
@@ -29,11 +35,12 @@ def _escape_like(term: str) -> str:
 )
 def create_job(
     job_data: JobCreate,
-    user_id: int = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_side(user, CLIENT_SIDE, "post jobs")
     job = Job(
-        customer_id=user_id,
+        customer_id=user.id,
         title=job_data.title,
         description=job_data.description,
         category=job_data.category,
@@ -151,9 +158,11 @@ def list_jobs(
 def recommended_jobs(
     limit: int = 20,
     offset: int = 0,
-    user_id: int = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_side(user, WORKER_SIDE, "get job recommendations")
+    user_id = user.id
     if limit < 1 or limit > 100:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

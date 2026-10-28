@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../api";
-import { useAuth } from "../auth";
+import { useAuth, CLIENT_SIDE } from "../auth";
 import { SUPPORTED_CURRENCIES } from "../constants";
 
 export default function PostJobPage() {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -42,6 +42,20 @@ export default function PostJobPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // The API returns 403 for worker-only accounts; a direct visit to
+  // the URL gets the explanation instead of the form.
+  if (!CLIENT_SIDE.includes(user.account_type)) {
+    return (
+      <main className="narrow">
+        <h1>Post a job</h1>
+        <p className="meta">
+          Only client accounts can post jobs. Your account is set up for
+          working.
+        </p>
+      </main>
+    );
   }
 
   return (

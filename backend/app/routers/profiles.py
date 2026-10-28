@@ -4,9 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_user_id
+from app.core.security import (
+    WORKER_SIDE,
+    get_current_user,
+    get_current_user_id,
+    require_side,
+)
 from app.db_session import get_db
-from app.models import ProfileTag, WorkerProfile
+from app.models import ProfileTag, User, WorkerProfile
 from app.schemas import WorkerProfileResponse, WorkerProfileUpsert
 
 router = APIRouter(tags=["profiles"])
@@ -40,9 +45,11 @@ def get_my_worker_profile(
 @router.put("/profiles/me/worker", response_model=WorkerProfileResponse)
 def upsert_my_worker_profile(
     profile_data: WorkerProfileUpsert,
-    user_id: int = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_side(user, WORKER_SIDE, "maintain a worker profile")
+    user_id = user.id
     profile = db.query(WorkerProfile).filter(WorkerProfile.user_id == user_id).first()
 
     if profile is None:

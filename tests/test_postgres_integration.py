@@ -82,6 +82,7 @@ def register(client, email):
             "full_name": "Postgres Test User",
             "email": email,
             "password": "SecurePass123!",
+            "account_type": "both",
         },
     )
     assert response.status_code == 201

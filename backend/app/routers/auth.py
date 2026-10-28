@@ -47,6 +47,7 @@ def register_user(
         full_name=user_data.full_name,
         email=str(user_data.email),
         password_hash=hash_password(user_data.password),
+        account_type=user_data.account_type,
     )
 
     try:
