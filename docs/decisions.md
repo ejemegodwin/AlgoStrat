@@ -3,6 +3,38 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-011: Disputes and ledger reversals (2026-10-28)
+
+Product decisions (owner-approved):
+
+- Either contract party may raise ONE open dispute per contract while
+  it is active, with a required reason and an optional milestone
+  reference. Raising moves the contract to `disputed`, which freezes
+  all mutations for free: every mutation path already requires
+  `active` (ADR-008).
+- Admin model: `users.is_admin` boolean, seeded manually via SQL.
+  Admin-only endpoints list and resolve disputes; every admin action
+  is recorded in `contract_events` with the admin as actor.
+- Exactly three resolution outcomes:
+  - `worker_favored`: a referenced submitted/changes-requested
+    milestone is force-approved (posting its accrual, actor = admin);
+    the contract resumes `active`.
+  - `client_favored`: the contract is cancelled, open milestones
+    cancel with it, and if the referenced milestone was approved, its
+    accrual is REVERSED automatically in the same transaction.
+  - `dismissed`: nothing changes; the contract resumes `active`.
+- Reversals (ADR-009 mechanism): a `reversal` transaction whose
+  entries mirror the original accrual's with negated amounts, keyed
+  `reversal:{original_transaction_id}`. The milestone stays `approved`
+  — history is not rewritten — but the financial obligation is wiped.
+- A dispute force-approval emits `review_approved` (actor = admin), so
+  it counts in the worker's reliability share — deliberately: the work
+  was adjudicated as acceptable.
+- One-open-dispute-per-contract is enforced by a partial unique index
+  (`status = 'open'`), defense in depth behind the status check.
+- The contracts status CHECK widens to include `disputed`; downgrading
+  requires no disputed rows to exist (documented in the migration).
+
 ## ADR-010: Explainable matching (2026-10-28)
 
 Product decisions (owner-approved):
