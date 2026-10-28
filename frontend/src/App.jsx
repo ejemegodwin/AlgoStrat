@@ -2,6 +2,7 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { useAuth } from "./auth";
 import RequireAuth from "./components/RequireAuth";
+import AdminDisputesPage from "./pages/AdminDisputesPage";
 import ContractDetailPage from "./pages/ContractDetailPage";
 import ContractsPage from "./pages/ContractsPage";
 import JobDetailPage from "./pages/JobDetailPage";
@@ -27,6 +28,7 @@ function Header() {
             <Link to="/applications">My applications</Link>
             <Link to="/contracts">Contracts</Link>
             <Link to="/payouts">Payouts</Link>
+            {user.is_admin && <Link to="/admin/disputes">Disputes</Link>}
             <span className="who">{user.full_name}</span>
             <button type="button" className="link" onClick={logout}>
               Log out
@@ -80,6 +82,14 @@ export default function App() {
           element={
             <RequireAuth>
               <PayoutsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/disputes"
+          element={
+            <RequireAuth>
+              <AdminDisputesPage />
             </RequireAuth>
           }
         />

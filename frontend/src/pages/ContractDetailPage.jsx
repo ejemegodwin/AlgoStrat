@@ -405,6 +405,8 @@ function MilestoneCard({ milestone, isClient, contractActive, onChanged }) {
 // their raw name with spaces so a new event type never renders blank.
 const EVENT_LABELS = {
   contract_created: "Contract created",
+  dispute_raised: "Dispute raised",
+  dispute_resolved: "Dispute resolved",
   milestone_added: "Milestone added",
   milestone_updated: "Milestone updated",
   milestone_removed: "Milestone removed",
@@ -443,11 +445,145 @@ function EventsList({ events, userId }) {
   );
 }
 
+// Either party can raise a dispute on an active contract (ADR-011).
+// Raising freezes everything immediately — the confirm says so in
+// plain terms, because every other action on this page silently
+// disappears while the contract is disputed.
+function DisputeSection({ contract, milestones, disputes, onChanged }) {
+  const { user, token } = useAuth();
+  const [raising, setRaising] = useState(false);
+  const [reason, setReason] = useState("");
+  const [milestoneId, setMilestoneId] = useState("");
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleRaise(event) {
+    event.preventDefault();
+    if (
+      !window.confirm(
+        "Raise a dispute? The contract freezes immediately: no " +
+          "milestones can be added, submitted, reviewed, or completed " +
+          "until an admin resolves it.",
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await api(`/contracts/${contract.id}/disputes`, {
+        method: "POST",
+        token,
+        body: {
+          reason,
+          milestone_id: milestoneId === "" ? null : Number(milestoneId),
+        },
+      });
+      setRaising(false);
+      setReason("");
+      setMilestoneId("");
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section>
+      <h2>Disputes</h2>
+      {contract.status === "disputed" && (
+        <p className="meta">
+          This contract is frozen while an admin reviews the dispute —
+          all other actions are paused.
+        </p>
+      )}
+      {disputes.length > 0 && (
+        <ul className="card-list">
+          {disputes.map((dispute) => (
+            <li key={dispute.id} className="card">
+              <p className="meta">
+                {dispute.raised_by === user.id ? "You" : "The other party"}
+                {" · "}
+                {new Date(dispute.created_at).toLocaleString()}
+                {" · "}
+                {dispute.status}
+              </p>
+              <p className="description">{dispute.reason}</p>
+              {dispute.status === "resolved" && (
+                <p className="meta">
+                  Resolved: {dispute.resolution?.replaceAll("_", " ")}
+                  {dispute.resolution_note && <> — {dispute.resolution_note}</>}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {contract.status === "active" && !raising && (
+        <div className="actions">
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setRaising(true)}
+          >
+            Raise a dispute
+          </button>
+        </div>
+      )}
+      {raising && (
+        <form onSubmit={handleRaise}>
+          <label>
+            What went wrong? (at least 20 characters)
+            <textarea
+              required
+              minLength={20}
+              maxLength={5000}
+              rows={4}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            />
+          </label>
+          <label>
+            About a specific milestone? (optional)
+            <select
+              value={milestoneId}
+              onChange={(event) => setMilestoneId(event.target.value)}
+            >
+              <option value="">The contract as a whole</option>
+              {milestones.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.title} — {m.status.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+          </label>
+          {error && <p className="error">{error}</p>}
+          <div className="actions">
+            <button type="submit" disabled={submitting}>
+              {submitting ? "Raising…" : "Raise dispute"}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setRaising(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
 export default function ContractDetailPage() {
   const { contractId } = useParams();
   const { user, token } = useAuth();
   const [contract, setContract] = useState(null);
   const [events, setEvents] = useState(null);
+  const [disputes, setDisputes] = useState(null);
   const [jobTitle, setJobTitle] = useState(null);
   const [error, setError] = useState(null);
   const [adding, setAdding] = useState(false);
@@ -456,12 +592,14 @@ export default function ContractDetailPage() {
   // One loader for mount and for refresh after every mutation: each
   // action changes the contract, the milestones, and the audit log.
   const load = useCallback(async () => {
-    const [detail, eventList] = await Promise.all([
+    const [detail, eventList, disputeList] = await Promise.all([
       api(`/contracts/${contractId}`, { token }),
       api(`/contracts/${contractId}/events`, { token }),
+      api(`/contracts/${contractId}/disputes`, { token }),
     ]);
     setContract(detail);
     setEvents(eventList);
+    setDisputes(disputeList);
     const titles = await fetchJobTitles(token, [detail.job_id]);
     setJobTitle(titles[detail.job_id]);
   }, [contractId, token]);
@@ -634,6 +772,15 @@ export default function ContractDetailPage() {
             </p>
           )}
         </section>
+      )}
+
+      {disputes !== null && (
+        <DisputeSection
+          contract={contract}
+          milestones={milestones}
+          disputes={disputes}
+          onChanged={reload}
+        />
       )}
 
       {events !== null && <EventsList events={events} userId={user.id} />}
