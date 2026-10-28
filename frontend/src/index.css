@@ -1,0 +1,155 @@
+:root {
+  color-scheme: light dark;
+  --ink: #1c1c1e;
+  --paper: #fafafa;
+  --muted: #6b6b70;
+  --line: #e2e2e6;
+  --accent: #2563eb;
+  --danger: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #f2f2f4;
+    --paper: #17171a;
+    --muted: #a0a0a8;
+    --line: #2e2e33;
+    --accent: #7aa2f7;
+    --danger: #f87171;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+#root {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+a {
+  color: var(--accent);
+}
+
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 24px;
+}
+
+.site-header .brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.site-header nav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.site-header .who {
+  color: var(--muted);
+}
+
+main.narrow {
+  max-width: 380px;
+}
+
+form {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+form label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+input {
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+button {
+  padding: 8px 14px;
+  font: inherit;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.card-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.card h2 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.card h2 a {
+  text-decoration: none;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 8px;
+}
+
+.description {
+  white-space: pre-wrap;
+}
