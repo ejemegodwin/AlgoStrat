@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.security import get_current_user_id
 from app.db_session import get_db
 from app.models import Contract, ContractEvent, Milestone
+from app.services import ledger as ledger_service
 from app.schemas import (
     ContractDetailResponse,
     ContractEventResponse,
@@ -374,6 +375,12 @@ def review_milestone(
     if review_data.decision == "approve":
         milestone.status = "approved"
         event_type = "review_approved"
+        # Work accepted = value earned (ADR-009): the accrual posts in
+        # this same transaction, so approval and ledger commit or roll
+        # back together.
+        ledger_service.post_accrual(
+            db, milestone=milestone, contract=contract, actor_id=user_id
+        )
     else:
         milestone.status = "changes_requested"
         event_type = "changes_requested"

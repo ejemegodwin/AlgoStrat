@@ -236,3 +236,112 @@ class ContractEvent(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+
+class LedgerAccount(Base):
+    """One account per owner + type + currency (ADR-009). Balances are
+    derived from entries, never stored."""
+
+    __tablename__ = "ledger_accounts"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "owner_type",
+            "owner_id",
+            "account_type",
+            "currency",
+            name="uq_ledger_account",
+        ),
+        CheckConstraint(
+            "owner_type IN ('user', 'platform')",
+            name="ck_ledger_accounts_owner_type",
+        ),
+        CheckConstraint(
+            "account_type IN ('client_payable', 'worker_receivable', "
+            "'platform_revenue', 'platform_cash')",
+            name="ck_ledger_accounts_type",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    owner_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    # NULL owner means the account belongs to the platform itself.
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    account_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class LedgerTransaction(Base):
+    """A balanced financial fact (ADR-009). Append-only: corrections are
+    reversal transactions, never edits."""
+
+    __tablename__ = "ledger_transactions"
+
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('accrual', 'settlement', 'reversal', 'adjustment')",
+            name="ck_ledger_transactions_type",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    contract_id: Mapped[int] = mapped_column(
+        ForeignKey("contracts.id"), nullable=False, index=True
+    )
+    milestone_id: Mapped[int | None] = mapped_column(
+        ForeignKey("milestones.id"), nullable=True
+    )
+    type: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Retries (API or future provider webhooks) must never double-post.
+    idempotency_key: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False
+    )
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    entries: Mapped[list["LedgerEntry"]] = relationship(
+        back_populates="transaction"
+    )
+
+
+class LedgerEntry(Base):
+    """One signed movement into one account. Entries within a
+    transaction always sum to zero; the sign encodes direction."""
+
+    __tablename__ = "ledger_entries"
+
+    __table_args__ = (
+        CheckConstraint("amount <> 0", name="ck_ledger_entries_amount_nonzero"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    transaction_id: Mapped[int] = mapped_column(
+        ForeignKey("ledger_transactions.id"), nullable=False, index=True
+    )
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("ledger_accounts.id"), nullable=False, index=True
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    transaction: Mapped["LedgerTransaction"] = relationship(
+        back_populates="entries"
+    )

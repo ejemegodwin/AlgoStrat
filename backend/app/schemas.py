@@ -304,3 +304,29 @@ class MilestoneReview(BaseModel):
         if self.decision == "request_changes" and self.note is None:
             raise ValueError("A note is required when requesting changes.")
         return self
+
+
+class LedgerAccountBalance(BaseModel):
+    account_type: str
+    currency: str
+    balance: Decimal
+
+
+class LedgerEntryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    account_id: int
+    amount: Decimal
+
+
+class LedgerTransactionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    contract_id: int
+    milestone_id: int | None
+    type: str
+    note: str | None
+    created_at: datetime
+    entries: list[LedgerEntryResponse]

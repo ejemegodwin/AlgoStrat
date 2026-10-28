@@ -65,7 +65,8 @@ def pg_client():
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE contract_events, milestones, contracts, "
+                "TRUNCATE ledger_entries, ledger_transactions, "
+                "ledger_accounts, contract_events, milestones, contracts, "
                 "job_applications, jobs, users "
                 "RESTART IDENTITY CASCADE"
             )
