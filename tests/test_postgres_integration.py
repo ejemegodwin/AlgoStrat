@@ -65,7 +65,8 @@ def pg_client():
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE job_applications, jobs, users "
+                "TRUNCATE contract_events, milestones, contracts, "
+                "job_applications, jobs, users "
                 "RESTART IDENTITY CASCADE"
             )
         )
@@ -154,3 +155,75 @@ def test_concurrent_accepts_hire_exactly_one_worker(pg_client):
 
     job = pg_client.get(f"/jobs/{job_id}").json()
     assert job["status"] == "closed"
+
+
+def hire(pg_client, owner_headers, worker_headers):
+    """Run a full hire and return the new contract's id."""
+    job_response = pg_client.post(
+        "/jobs",
+        headers=owner_headers,
+        json={
+            "title": "Build a company website",
+            "description": "Create a professional website for a business.",
+        },
+    )
+    assert job_response.status_code == 201
+    job_id = job_response.json()["id"]
+
+    application_id = apply(pg_client, job_id, worker_headers)
+
+    decide_response = pg_client.patch(
+        f"/jobs/{job_id}/applications/{application_id}",
+        headers=owner_headers,
+        json={"status": "accepted"},
+    )
+    assert decide_response.status_code == 200
+
+    contracts = pg_client.get("/contracts", headers=owner_headers).json()
+    return contracts[0]["id"]
+
+
+def test_concurrent_submits_succeed_exactly_once(pg_client):
+    """Two racing submits of the same milestone: the contract row lock
+    serializes them, so exactly one wins and the evidence trail records
+    a single submission."""
+    owner_headers = register(pg_client, "pg-submit-owner@example.com")
+    worker_headers = register(pg_client, "pg-submit-worker@example.com")
+    contract_id = hire(pg_client, owner_headers, worker_headers)
+
+    milestone_response = pg_client.post(
+        f"/contracts/{contract_id}/milestones",
+        headers=owner_headers,
+        json={"title": "Design mockups"},
+    )
+    assert milestone_response.status_code == 201
+    milestone_id = milestone_response.json()["id"]
+
+    responses = {}
+
+    def submit(key):
+        responses[key] = pg_client.post(
+            f"/milestones/{milestone_id}/submit",
+            headers=worker_headers,
+            json={"note": "Here is the completed work."},
+        )
+
+    threads = [
+        threading.Thread(target=submit, args=("first",)),
+        threading.Thread(target=submit, args=("second",)),
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    status_codes = sorted(r.status_code for r in responses.values())
+    assert status_codes == [200, 400]
+
+    events = pg_client.get(
+        f"/contracts/{contract_id}/events", headers=owner_headers
+    ).json()
+    submissions = [
+        e for e in events if e["event_type"] == "milestone_submitted"
+    ]
+    assert len(submissions) == 1

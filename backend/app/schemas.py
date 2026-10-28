@@ -9,6 +9,7 @@ from pydantic import (
     Field,
     StringConstraints,
     field_validator,
+    model_validator,
 )
 
 # Currencies AlgoStrat currently supports for job budgets.
@@ -239,3 +240,67 @@ class ContractEventResponse(BaseModel):
     event_type: str
     note: str | None
     created_at: datetime
+
+
+class MilestoneCreate(BaseModel):
+    title: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=3, max_length=150),
+    ]
+    description: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, max_length=5000),
+    ] | None = None
+    amount: Decimal | None = Field(default=None, gt=0)
+    due_date: datetime | None = None
+    # Explicit position is optional; omitted means "append at the end".
+    position: int | None = Field(default=None, ge=1)
+
+    @field_validator("description")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        return _empty_string_to_none(value)
+
+
+class MilestoneUpdate(BaseModel):
+    # All optional: only the fields actually sent are changed. Sending an
+    # explicit null clears nullable fields (amount, due_date, description).
+    title: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=3, max_length=150),
+    ] | None = None
+    description: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, max_length=5000),
+    ] | None = None
+    amount: Decimal | None = Field(default=None, gt=0)
+    due_date: datetime | None = None
+    position: int | None = Field(default=None, ge=1)
+
+    @field_validator("description")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        return _empty_string_to_none(value)
+
+
+class MilestoneSubmit(BaseModel):
+    note: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=10, max_length=5000),
+    ]
+
+
+class MilestoneReview(BaseModel):
+    decision: str = Field(pattern="^(approve|request_changes)$")
+    note: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=10, max_length=5000),
+    ] | None = None
+
+    @model_validator(mode="after")
+    def note_required_when_requesting_changes(self) -> "MilestoneReview":
+        # "Request changes" without an explanation is a dead end for the
+        # worker; approval may stay silent.
+        if self.decision == "request_changes" and self.note is None:
+            raise ValueError("A note is required when requesting changes.")
+        return self
