@@ -10,6 +10,8 @@ from app.core.security import get_current_user_id
 from app.db_session import get_db
 from app.models import Contract, ContractEvent, Dispute, Milestone
 from app.services import ledger as ledger_service
+from app.services import payments as payments_service
+from app.services.payments import ChargeDeclinedError
 from app.schemas import (
     ContractDetailResponse,
     ContractEventResponse,
@@ -375,6 +377,33 @@ def review_milestone(
     milestone.reviewed_at = datetime.now(timezone.utc)
 
     if review_data.decision == "approve":
+        charge_reference = None
+        if milestone.amount is not None:
+            # Approval of a priced milestone moves money (ADR-012): the
+            # client is charged FIRST; a decline posts nothing and the
+            # milestone stays submitted. The provider reference is the
+            # accrual's idempotency key, so a retry cannot double-charge.
+            if not review_data.payment_token:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "A payment token is required to approve a "
+                        "priced milestone."
+                    ),
+                )
+            try:
+                charge_reference = payments_service.get_provider().charge(
+                    amount=milestone.amount,
+                    currency=contract.currency,
+                    reference=f"accrual:milestone:{milestone.id}",
+                    token=review_data.payment_token,
+                )
+            except ChargeDeclinedError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail="The payment was declined. Try another payment method.",
+                ) from exc
+
         milestone.status = "approved"
         event_type = "review_approved"
         # Work accepted = value earned (ADR-009): the accrual posts in
@@ -383,6 +412,14 @@ def review_milestone(
         ledger_service.post_accrual(
             db, milestone=milestone, contract=contract, actor_id=user_id
         )
+        if milestone.amount is not None:
+            ledger_service.post_charge_settlement(
+                db,
+                milestone=milestone,
+                contract=contract,
+                actor_id=user_id,
+                provider_reference=charge_reference,
+            )
     else:
         milestone.status = "changes_requested"
         event_type = "changes_requested"

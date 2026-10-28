@@ -1,10 +1,17 @@
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from app.core.security import create_access_token
-from app.models import Dispute, LedgerTransaction, User
+from app.models import (
+    Dispute,
+    LedgerAccount,
+    LedgerEntry,
+    LedgerTransaction,
+    User,
+)
 from app.services import ledger as ledger_service
 
 VALID_REASON = "The delivered work does not match the agreed requirements."
@@ -94,7 +101,7 @@ def approve_milestone(client, milestone_id, owner_headers):
     response = client.post(
         f"/milestones/{milestone_id}/review",
         headers=owner_headers,
-        json={"decision": "approve"},
+        json={"decision": "approve", "payment_token": "tok_ok"},
     )
     assert response.status_code == 200
 
@@ -320,8 +327,9 @@ def test_client_favored_resolution_cancels_and_reverses(client_and_db):
     submit_milestone(client, milestone_id, worker_headers)
     approve_milestone(client, milestone_id, owner_headers)
 
-    # The accrual stands before the dispute.
-    assert balance_for(client, owner_headers, "client_payable") == Decimal("100")
+    # The charge settled at approval (ADR-012): the client's payable is
+    # already cleared and the worker's receivable is cash-backed.
+    assert balance_for(client, owner_headers, "client_payable") == Decimal("0")
     assert balance_for(client, worker_headers, "worker_receivable") == Decimal("100")
 
     dispute = raise_dispute(
@@ -339,8 +347,9 @@ def test_client_favored_resolution_cancels_and_reverses(client_and_db):
     assert balance_for(client, worker_headers, "worker_receivable") == Decimal("0")
     assert get_milestone(client, contract_id, owner_headers)["status"] == "approved"
 
-    # The ledger shows both the accrual and its mirror-image reversal,
-    # each balanced to zero.
+    # The ledger shows the accrual and the charge, plus their
+    # mirror-image reversals — and the refund returned the cash, so
+    # every balance is back to zero.
     db = SessionLocal()
     try:
         transactions = (
@@ -348,9 +357,27 @@ def test_client_favored_resolution_cancels_and_reverses(client_and_db):
             .filter(LedgerTransaction.contract_id == contract_id)
             .all()
         )
-        assert sorted(txn.type for txn in transactions) == ["accrual", "reversal"]
+        assert sorted(txn.type for txn in transactions) == [
+            "accrual",
+            "reversal",
+            "reversal",
+            "settlement",
+        ]
         for txn in transactions:
             assert sum(entry.amount for entry in txn.entries) == Decimal("0")
+
+        cash_account = (
+            db.query(LedgerAccount)
+            .filter(
+                LedgerAccount.account_type == "platform_cash",
+                LedgerAccount.currency == "USD",
+            )
+            .one()
+        )
+        cash_total = db.query(
+            func.coalesce(func.sum(LedgerEntry.amount), 0)
+        ).filter(LedgerEntry.account_id == cash_account.id).scalar()
+        assert cash_total == Decimal("0")
     finally:
         db.close()
 
@@ -375,9 +402,11 @@ def test_dismissed_resolution_resumes_without_changes(client_and_db):
     assert get_milestone(client, contract_id, owner_headers)["status"] == "submitted"
     assert balance_for(client, owner_headers, "client_payable") == Decimal("0")
 
-    # Work flows again immediately after a dismissal.
+    # Work flows again immediately after a dismissal — and the approval
+    # charges the client at once (ADR-012), so the payable clears.
     approve_milestone(client, milestone_id, owner_headers)
-    assert balance_for(client, owner_headers, "client_payable") == Decimal("100")
+    assert balance_for(client, owner_headers, "client_payable") == Decimal("0")
+    assert balance_for(client, worker_headers, "worker_receivable") == Decimal("100")
 
 
 def test_resolution_is_final(client_and_db):
@@ -487,11 +516,22 @@ def test_reversal_is_idempotent_at_the_service_level(client_and_db):
         )
         db.commit()
         assert second.id == first.id
+        # Mirror the dispute path (ADR-012): reverse the charge
+        # settlement too, so the client gets their cash back.
+        settlement = (
+            db.query(LedgerTransaction)
+            .filter(LedgerTransaction.type == "settlement")
+            .one()
+        )
+        ledger_service.post_reversal(
+            db, original=settlement, actor_id=settlement.created_by
+        )
+        db.commit()
         assert (
             db.query(LedgerTransaction)
             .filter(LedgerTransaction.type == "reversal")
             .count()
-            == 1
+            == 2
         )
     finally:
         db.close()

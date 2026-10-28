@@ -9,6 +9,7 @@ from app.routers import (
     contracts,
     jobs,
     ledger,
+    payouts,
     profiles,
 )
 
@@ -21,6 +22,7 @@ app.include_router(contracts.router)
 app.include_router(ledger.router)
 app.include_router(profiles.router)
 app.include_router(admin.router)
+app.include_router(payouts.router)
 
 
 @app.get("/")

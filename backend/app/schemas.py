@@ -296,6 +296,13 @@ class MilestoneReview(BaseModel):
         str,
         StringConstraints(strip_whitespace=True, min_length=10, max_length=5000),
     ] | None = None
+    # Required to approve a PRICED milestone (ADR-012): the client's
+    # payment-method token for the charge. A provider token, never
+    # card data; a real adapter receives provider-issued tokens.
+    payment_token: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=3, max_length=100),
+    ] | None = None
 
     @model_validator(mode="after")
     def note_required_when_requesting_changes(self) -> "MilestoneReview":
@@ -428,3 +435,32 @@ class DisputeResponse(BaseModel):
     resolved_by: int | None
     created_at: datetime
     resolved_at: datetime | None
+
+
+class PayoutCreate(BaseModel):
+    currency: str = Field(min_length=3, max_length=3)
+    # Absent means "pay out the full settled balance" (ADR-012).
+    amount: Decimal | None = Field(
+        default=None, gt=0, max_digits=14, decimal_places=2
+    )
+    destination: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=3, max_length=255),
+    ]
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str) -> str:
+        return _normalize_currency(value)
+
+
+class PayoutResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    amount: Decimal
+    currency: str
+    destination: str
+    status: str
+    provider_reference: str | None
+    created_at: datetime

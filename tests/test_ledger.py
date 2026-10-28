@@ -91,7 +91,7 @@ def submit_and_approve(client, milestone_id, owner_headers, worker_headers):
     approve = client.post(
         f"/milestones/{milestone_id}/review",
         headers=owner_headers,
-        json={"decision": "approve"},
+        json={"decision": "approve", "payment_token": "tok_ok"},
     )
     assert approve.status_code == 200
 
@@ -129,9 +129,9 @@ def test_approving_a_priced_milestone_posts_a_balanced_accrual(client_and_db):
     submit_and_approve(client, milestone_id, owner_headers, worker_headers)
 
     transactions = contract_ledger(client, contract_id, owner_headers)
-    assert len(transactions) == 1
-    transaction = transactions[0]
-    assert transaction["type"] == "accrual"
+    # Accrual + charge settlement (ADR-012).
+    assert len(transactions) == 2
+    transaction = next(t for t in transactions if t["type"] == "accrual")
     assert transaction["contract_id"] == contract_id
     assert transaction["milestone_id"] == milestone_id
 
@@ -180,7 +180,7 @@ def test_fee_split_when_configured(client_and_db, monkeypatch):
 
     db = SessionLocal()
     try:
-        transaction = db.query(LedgerTransaction).one()
+        transaction = db.query(LedgerTransaction).filter_by(type="accrual").one()
         entries = entries_by_account_type(db, transaction.id)
         assert entries == {
             "client_payable": Decimal("100.00"),
@@ -205,7 +205,7 @@ def test_fee_rounding_keeps_the_books_exactly_balanced(client_and_db, monkeypatc
 
     db = SessionLocal()
     try:
-        transaction = db.query(LedgerTransaction).one()
+        transaction = db.query(LedgerTransaction).filter_by(type="accrual").one()
         entries = entries_by_account_type(db, transaction.id)
         assert entries["platform_revenue"] == Decimal("-2.00")
         assert entries["worker_receivable"] == Decimal("-17.99")
@@ -226,7 +226,8 @@ def test_balances_accumulate_across_approvals(client):
     client_balance = balance(client, owner_headers)
     assert len(client_balance) == 1
     assert client_balance[0]["account_type"] == "client_payable"
-    assert Decimal(str(client_balance[0]["balance"])) == Decimal("250.00")
+    # Charged at approval (ADR-012): the payable clears immediately.
+    assert Decimal(str(client_balance[0]["balance"])) == Decimal("0")
 
     worker_balance = balance(client, worker_headers)
     assert len(worker_balance) == 1
@@ -310,7 +311,7 @@ def test_failed_review_posts_no_ledger_entries(client_and_db, monkeypatch):
     response = client.post(
         f"/milestones/{milestone_id}/review",
         headers=owner_headers,
-        json={"decision": "approve"},
+        json={"decision": "approve", "payment_token": "tok_ok"},
     )
     assert response.status_code == 503
 
@@ -374,7 +375,8 @@ def test_accrual_is_idempotent_at_the_service_level(client_and_db):
 
         # The retry returned the original transaction and posted nothing new.
         assert first.id == second.id
-        assert db.query(LedgerTransaction).count() == 1
-        assert db.query(LedgerEntry).count() == 2
+        # Accrual + charge settlement (ADR-012), and nothing more.
+        assert db.query(LedgerTransaction).count() == 2
+        assert db.query(LedgerEntry).count() == 4
     finally:
         db.close()

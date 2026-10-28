@@ -296,8 +296,9 @@ class LedgerTransaction(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    contract_id: Mapped[int] = mapped_column(
-        ForeignKey("contracts.id"), nullable=False, index=True
+    # NULL for user-level transactions (payout settlements, ADR-012).
+    contract_id: Mapped[int | None] = mapped_column(
+        ForeignKey("contracts.id"), nullable=True, index=True
     )
     milestone_id: Mapped[int | None] = mapped_column(
         ForeignKey("milestones.id"), nullable=True
@@ -306,6 +307,11 @@ class LedgerTransaction(Base):
     # Retries (API or future provider webhooks) must never double-post.
     idempotency_key: Mapped[str] = mapped_column(
         String(100), unique=True, nullable=False
+    )
+    # The provider's own reference for the money movement (ADR-012),
+    # for reconciliation; NULL for pre-payments-era transactions.
+    provider_reference: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
     )
     created_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id"), nullable=True
@@ -348,6 +354,40 @@ class LedgerEntry(Base):
 
     transaction: Mapped["LedgerTransaction"] = relationship(
         back_populates="entries"
+    )
+
+
+class Payout(Base):
+    """A worker's withdrawal of settled earnings (ADR-012). The ledger
+    settlement is the financial record; this row is the operational
+    one (who asked, where to, what the provider called it)."""
+
+    __tablename__ = "payouts"
+
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_payouts_amount_positive"),
+        CheckConstraint(
+            "status IN ('succeeded', 'failed')", name="ck_payouts_status"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    worker_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    destination: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="succeeded"
+    )
+    provider_reference: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
 

@@ -14,7 +14,14 @@ from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import Contract, LedgerAccount, LedgerEntry, LedgerTransaction, Milestone
+from app.models import (
+    Contract,
+    LedgerAccount,
+    LedgerEntry,
+    LedgerTransaction,
+    Milestone,
+    Payout,
+)
 
 # Platform fee, configurable per environment (ADR-009). Read once at
 # import; tests monkeypatch this module attribute to vary it.
@@ -188,6 +195,128 @@ def post_reversal(
         )
 
     return reversal
+
+
+def post_charge_settlement(
+    db: Session,
+    *,
+    milestone: Milestone,
+    contract: Contract,
+    actor_id: int,
+    provider_reference: str,
+) -> LedgerTransaction | None:
+    """Record the cash collected by charging the client at approval
+    (ADR-012): the client's payable clears and platform cash increases
+    by the full charged amount. Posts in the caller's transaction,
+    atomically with the accrual. Idempotent via the milestone key."""
+    if milestone.amount is None:
+        return None
+
+    idempotency_key = f"settlement:milestone:{milestone.id}"
+    existing = (
+        db.query(LedgerTransaction)
+        .filter(LedgerTransaction.idempotency_key == idempotency_key)
+        .first()
+    )
+    if existing is not None:
+        return existing
+
+    amount = milestone.amount
+    transaction = LedgerTransaction(
+        contract_id=contract.id,
+        milestone_id=milestone.id,
+        type="settlement",
+        idempotency_key=idempotency_key,
+        created_by=actor_id,
+        provider_reference=provider_reference,
+        note=f"Charge settlement for milestone '{milestone.title}'.",
+    )
+    db.add(transaction)
+    db.flush()
+
+    client_account = get_or_create_account(
+        db, "user", contract.client_id, "client_payable", contract.currency
+    )
+    cash_account = get_or_create_account(
+        db, "platform", None, "platform_cash", contract.currency
+    )
+
+    db.add(
+        LedgerEntry(
+            transaction_id=transaction.id,
+            account_id=client_account.id,
+            amount=-amount,
+        )
+    )
+    db.add(
+        LedgerEntry(
+            transaction_id=transaction.id,
+            account_id=cash_account.id,
+            amount=amount,
+        )
+    )
+
+    return transaction
+
+
+def post_payout_settlement(
+    db: Session,
+    *,
+    payout: Payout,
+    worker_account: LedgerAccount,
+    actor_id: int,
+) -> LedgerTransaction:
+    """Record cash leaving the platform to a worker (ADR-012): the
+    worker's receivable clears by the payout amount and platform cash
+    decreases. Keyed payout:{id} so a retry can never double-pay."""
+    idempotency_key = f"payout:{payout.id}"
+    existing = (
+        db.query(LedgerTransaction)
+        .filter(LedgerTransaction.idempotency_key == idempotency_key)
+        .first()
+    )
+    if existing is not None:
+        return existing
+
+    transaction = LedgerTransaction(
+        contract_id=None,
+        milestone_id=None,
+        type="settlement",
+        idempotency_key=idempotency_key,
+        created_by=actor_id,
+        provider_reference=payout.provider_reference,
+        note=f"Payout of {payout.amount} {payout.currency} to worker.",
+    )
+    db.add(transaction)
+    db.flush()
+
+    cash_account = get_or_create_account(
+        db, "platform", None, "platform_cash", payout.currency
+    )
+
+    db.add(
+        LedgerEntry(
+            transaction_id=transaction.id,
+            account_id=worker_account.id,
+            amount=payout.amount,
+        )
+    )
+    db.add(
+        LedgerEntry(
+            transaction_id=transaction.id,
+            account_id=cash_account.id,
+            amount=-payout.amount,
+        )
+    )
+
+    return transaction
+
+
+def account_natural_balance(db: Session, account: LedgerAccount) -> Decimal:
+    total = db.query(
+        func.coalesce(func.sum(LedgerEntry.amount), 0)
+    ).filter(LedgerEntry.account_id == account.id).scalar()
+    return natural_balance(account.account_type, total)
 
 
 def natural_balance(account_type: str, entries_total: Decimal) -> Decimal:

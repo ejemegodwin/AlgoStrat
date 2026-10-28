@@ -14,6 +14,7 @@ from app.routers.contracts import (
 )
 from app.schemas import DisputeResolve, DisputeResponse
 from app.services import ledger as ledger_service
+from app.services import payments as payments_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -110,6 +111,32 @@ def resolve_dispute(
                         actor_id=admin_id,
                         note=f"Reversed by dispute #{dispute.id} resolution.",
                     )
+                    # If the milestone was charged (ADR-012), refund the
+                    # cash in the same transaction: the accrual reversal
+                    # created a refund claim; this clears it.
+                    charge_settlement = (
+                        db.query(LedgerTransaction)
+                        .filter(
+                            LedgerTransaction.idempotency_key
+                            == f"settlement:milestone:{milestone.id}"
+                        )
+                        .first()
+                    )
+                    if charge_settlement is not None:
+                        payments_service.get_provider().refund(
+                            amount=milestone.amount,
+                            currency=contract.currency,
+                            reference=f"reversal:{charge_settlement.id}",
+                            charge_reference=(
+                                charge_settlement.provider_reference or ""
+                            ),
+                        )
+                        ledger_service.post_reversal(
+                            db,
+                            original=charge_settlement,
+                            actor_id=admin_id,
+                            note=f"Refunded by dispute #{dispute.id} resolution.",
+                        )
         contract.status = "cancelled"
         db.query(Milestone).filter(
             Milestone.contract_id == contract.id,
