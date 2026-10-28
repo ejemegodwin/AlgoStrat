@@ -3,6 +3,28 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-016: Frontend — payouts (2026-10-28)
+
+Product decisions (owner-approved roadmap, frontend slice 5):
+
+- `/payouts` is the worker's view of the books: `worker_receivable`
+  per currency as "available to withdraw", plus any `client_payable`
+  still owed shown for transparency (a worker_favored dispute
+  resolution posts an accrual without a charge, so a client can owe —
+  hiding that would make the ledger feel wrong). Users only ever see
+  their own accounts; there is no endpoint for anyone else's.
+- Blank amount means "full settled balance" (the API's ADR-012
+  default), so the amount field is optional with the balance as its
+  placeholder. The form only offers currencies that actually hold a
+  positive receivable.
+- Requesting a payout is confirm-gated (it moves money, even with the
+  simulated provider) and the success state shows the provider
+  reference — the reference is the receipt. Payout history lists
+  below; balances and history reload after every payout.
+- Verified live against the Neon dev branch: full-loop funding
+  (approve → charge), over-balance 400, full payout zeroes the
+  balance, second payout 400s, client_payable settles to zero.
+
 ## ADR-015: Frontend — contract detail and the milestone loop (2026-10-28)
 
 Product decisions (owner-approved roadmap, frontend slice 4):
