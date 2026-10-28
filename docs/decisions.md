@@ -3,6 +3,35 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-008: Contracts and milestones (2026-10-28)
+
+Product decisions (owner-approved):
+
+- A Contract is created automatically in the same transaction that
+  accepts an application (accept = hire, ADR-001). No hire can exist
+  without a contract. One contract per job (`contracts.job_id` unique),
+  mirroring the single-hire invariant.
+- Contracts snapshot the parties and terms at hire time: `client_id`,
+  `worker_id`, `agreed_amount` (from the job budget), `currency`.
+- Milestones are client-defined while the contract is active; the
+  worker submits work; the client approves or requests changes (note
+  required) and the worker may resubmit. `approved` is terminal.
+- Money rule: when the contract has an agreed amount, the sum of
+  milestone amounts may not exceed it, checked under the contract row
+  lock. Amounts are records only — no money moves until the payment
+  ledger increment.
+- Completion is an explicit client action allowed only with no open
+  milestones; cancellation is client-only for now (worker recourse
+  arrives with the disputes increment).
+- `contract_events` is an append-only audit log (no update/delete
+  endpoints) carrying submission/review notes as payload, so the full
+  history survives resubmission. Foundation for verifiable work
+  history (differentiator 1). `milestone_id` goes NULL on milestone
+  deletion (`ON DELETE SET NULL`) so the audit trail survives.
+- Concurrency: all contract/milestone mutations hold
+  `SELECT ... FOR UPDATE` on the contract row — the same pattern as
+  the job row in ADR-001.
+
 ## ADR-007: Routers split by domain (2026-10-27)
 
 `main.py` only assembles the app and wires routers: `routers/auth.py`,
