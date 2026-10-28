@@ -3,13 +3,11 @@ import { Link } from "react-router-dom";
 
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { fetchJobTitles } from "../jobs";
 
 export default function MyApplicationsPage() {
   const { token } = useAuth();
   const [applications, setApplications] = useState(null);
-  // Job titles are not embedded in the application response, so we
-  // fetch each referenced job once and join client-side. Application
-  // lists are short; if they grow, the API should embed titles.
   const [jobTitles, setJobTitles] = useState({});
   const [error, setError] = useState(null);
 
@@ -19,16 +17,11 @@ export default function MyApplicationsPage() {
       .then(async (apps) => {
         if (cancelled) return;
         setApplications(apps);
-        const uniqueJobIds = [...new Set(apps.map((a) => a.job_id))];
-        const jobs = await Promise.all(
-          uniqueJobIds.map((id) =>
-            api(`/jobs/${id}`).catch(() => ({ id, title: `Job #${id}` })),
-          ),
+        const titles = await fetchJobTitles(
+          token,
+          apps.map((a) => a.job_id),
         );
-        if (cancelled) return;
-        setJobTitles(
-          Object.fromEntries(jobs.map((job) => [job.id, job.title])),
-        );
+        if (!cancelled) setJobTitles(titles);
       })
       .catch((err) => {
         if (!cancelled) setError(err.message);
