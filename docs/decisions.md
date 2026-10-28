@@ -3,6 +3,41 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-010: Explainable matching (2026-10-28)
+
+Product decisions (owner-approved):
+
+- Both matching directions exist: `GET /jobs/recommended` ranks open
+  jobs for the calling worker; `GET /jobs/{id}/applicants/ranked`
+  ranks a job's **applicants** for its owner. The client side ranks
+  only people who applied (never a platform-wide worker search) — the
+  privacy exposure is bounded by the application itself.
+- Transparency rule: both directions use the SAME factor definitions
+  and weights. Anything a client can see about a worker is computed
+  the same way the worker sees it; there are no hidden scores.
+- Worker profiles live in `worker_profiles` (availability, min_budget)
+  + `profile_tags` (kind skill/category, values trimmed + lowercased,
+  ≤10 skills, ≤5 categories). Normalized free-form tags, not a curated
+  taxonomy — one can be layered on later without migration.
+- Budget compatibility = worker's declared minimum budget vs the
+  job's total budget. No rate conversion until jobs carry durations.
+- Score = 0.40·category + 0.20·budget + 0.25·track_record
+  + 0.15·reliability. Track record caps at 3 completed contracts;
+  reliability = approval share of review events, defaulting to 0.5
+  (neutral, "not enough data") with no history. Newcomers are
+  structurally protected: history is worth at most 40% and never
+  scores below neutral.
+- Anti-discrimination guardrails: scoring uses only self-declared
+  professional data and platform-verified behavior — never name,
+  location, account age, or email domain. Job location is displayed,
+  never scored.
+- Recommendations exclude the worker's own jobs (they cannot apply to
+  them by rule); jobs they already applied to remain (their pipeline
+  is their own business; hiding data is not our job).
+- No machine learning: transparent rules with per-factor explanations
+  first; ML only with lawfully obtained data and a clear evaluation
+  method (master brief).
+
 ## ADR-009: Payment ledger — accrual only, double-entry (2026-10-28)
 
 Product decisions (owner-approved):
