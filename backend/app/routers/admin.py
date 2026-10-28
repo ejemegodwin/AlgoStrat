@@ -5,32 +5,72 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_current_admin_id
 from app.db_session import get_db
-from app.models import Dispute, LedgerTransaction, Milestone
+from app.models import Dispute, Job, LedgerTransaction, Milestone, User
 from app.routers.contracts import (
     OPEN_MILESTONE_STATUSES,
     commit_or_503,
     load_contract,
     record_event,
 )
-from app.schemas import DisputeResolve, DisputeResponse
+from app.schemas import AdminDisputeResponse, DisputeResolve, DisputeResponse
 from app.services import ledger as ledger_service
 from app.services import payments as payments_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-@router.get("/disputes", response_model=list[DisputeResponse])
+@router.get("/disputes", response_model=list[AdminDisputeResponse])
 def list_disputes(
     dispute_status: str = Query(default="open", pattern="^(open|resolved)$"),
     admin_id: int = Depends(get_current_admin_id),
     db: Session = Depends(get_db),
 ):
-    return (
+    disputes = (
         db.query(Dispute)
         .filter(Dispute.status == dispute_status)
         .order_by(Dispute.created_at.asc(), Dispute.id.asc())
         .all()
     )
+
+    # The queue is small and reviewed by a human; a clear per-dispute
+    # lookup beats a clever join here.
+    rows = []
+    for dispute in disputes:
+        contract = load_contract(dispute.contract_id, db)
+        job = db.query(Job).filter(Job.id == contract.job_id).first()
+        milestone = None
+        if dispute.milestone_id is not None:
+            milestone = (
+                db.query(Milestone)
+                .filter(Milestone.id == dispute.milestone_id)
+                .first()
+            )
+        names = {
+            user.id: user.full_name
+            for user in db.query(User)
+            .filter(
+                User.id.in_(
+                    {dispute.raised_by, contract.client_id, contract.worker_id}
+                )
+            )
+            .all()
+        }
+        rows.append(
+            AdminDisputeResponse(
+                **DisputeResponse.model_validate(dispute).model_dump(),
+                job_title=job.title if job else f"Job #{contract.job_id}",
+                contract_status=contract.status,
+                agreed_amount=contract.agreed_amount,
+                currency=contract.currency,
+                milestone_title=milestone.title if milestone else None,
+                milestone_status=milestone.status if milestone else None,
+                milestone_amount=milestone.amount if milestone else None,
+                raised_by_name=names.get(dispute.raised_by, "?"),
+                client_name=names.get(contract.client_id, "?"),
+                worker_name=names.get(contract.worker_id, "?"),
+            )
+        )
+    return rows
 
 
 @router.post("/disputes/{dispute_id}/resolve", response_model=DisputeResponse)

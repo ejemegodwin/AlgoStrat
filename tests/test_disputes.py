@@ -537,3 +537,47 @@ def test_reversal_is_idempotent_at_the_service_level(client_and_db):
         db.close()
 
     assert balance_for(client, owner_headers, "client_payable") == Decimal("0")
+
+
+def test_admin_listing_embeds_decision_context(client_and_db):
+    client, SessionLocal = client_and_db
+    _, owner_headers = register(client, "Olivia Owner", "ctx-owner@example.com")
+    _, worker_headers = register(
+        client, "Wendy Worker", "ctx-worker@example.com"
+    )
+    contract_id = hired_contract(client, owner_headers, worker_headers)
+    milestone_id = add_priced_milestone(client, contract_id, owner_headers)
+    submit_milestone(client, milestone_id, worker_headers)
+    dispute = raise_dispute(
+        client, contract_id, worker_headers, milestone_id=milestone_id
+    ).json()
+
+    _, admin_headers = make_admin(client, SessionLocal, "ctx-admin@example.com")
+    rows = client.get("/admin/disputes", headers=admin_headers).json()
+
+    # The admin decides without being a party, so the listing carries
+    # the job, contract, milestone, and names — not bare ids.
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["id"] == dispute["id"]
+    assert row["job_title"] == "Build a landing page"
+    assert row["contract_status"] == "disputed"
+    assert Decimal(str(row["agreed_amount"])) == Decimal("300.00")
+    assert row["currency"] == "USD"
+    assert row["milestone_title"] == "First deliverable"
+    assert row["milestone_status"] == "submitted"
+    assert Decimal(str(row["milestone_amount"])) == Decimal("100.00")
+    assert row["raised_by_name"] == "Wendy Worker"
+    assert row["client_name"] == "Olivia Owner"
+    assert row["worker_name"] == "Wendy Worker"
+
+
+def test_me_response_includes_is_admin(client_and_db):
+    client, SessionLocal = client_and_db
+    _, plain_headers = register(client, "Plain User", "me-plain@example.com")
+    me = client.get("/auth/me", headers=plain_headers).json()
+    assert me["is_admin"] is False
+
+    _, admin_headers = make_admin(client, SessionLocal, "me-admin@example.com")
+    me = client.get("/auth/me", headers=admin_headers).json()
+    assert me["is_admin"] is True

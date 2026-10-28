@@ -80,6 +80,9 @@ class UserResponse(BaseModel):
     full_name: str
     email: EmailStr
     account_type: str
+    # Lets the SPA decide whether to surface the admin UI; the API
+    # still enforces admin-only on every admin endpoint.
+    is_admin: bool
 
 
 class UserLogin(BaseModel):
@@ -435,6 +438,23 @@ class DisputeResponse(BaseModel):
     resolved_by: int | None
     created_at: datetime
     resolved_at: datetime | None
+
+
+class AdminDisputeResponse(DisputeResponse):
+    """The dispute plus everything an admin needs to decide it without
+    being a party to the contract (party endpoints stay lean). Admin
+    endpoints only — this deliberately crosses the party boundary."""
+
+    job_title: str
+    contract_status: str
+    agreed_amount: Decimal | None
+    currency: str
+    milestone_title: str | None
+    milestone_status: str | None
+    milestone_amount: Decimal | None
+    raised_by_name: str
+    client_name: str
+    worker_name: str
 
 
 class PayoutCreate(BaseModel):
