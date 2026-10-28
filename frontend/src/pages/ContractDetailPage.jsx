@@ -404,6 +404,7 @@ function MilestoneCard({ milestone, isClient, contractActive, onChanged }) {
 // Human-readable labels for the audit log; unknown types fall back to
 // their raw name with spaces so a new event type never renders blank.
 const EVENT_LABELS = {
+  contract_created: "Contract created",
   milestone_added: "Milestone added",
   milestone_updated: "Milestone updated",
   milestone_removed: "Milestone removed",
