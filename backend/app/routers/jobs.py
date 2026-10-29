@@ -12,7 +12,7 @@ from app.core.security import (
     require_side,
 )
 from app.db_session import get_db
-from app.models import Job, JobApplication, User
+from app.models import Contract, Job, JobApplication, JobCriterion, User
 from app.schemas import JobCreate, JobRecommendation, JobResponse, JobUpdate
 from app.services import matching as matching_service
 
@@ -28,6 +28,23 @@ def _escape_like(term: str) -> str:
     )
 
 
+EVALUABLE_JOB_TYPES = ("starter_task", "placement_check")
+
+
+def _require_criteria_for_evaluable_types(job_type: str, criteria_count: int) -> None:
+    """An evaluable task with no written criteria cannot be fairly
+    reviewed — the criterion IS the evaluation. Standard jobs stay
+    criteria-optional (enforced server-side, not just in the SPA)."""
+    if job_type in EVALUABLE_JOB_TYPES and criteria_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                f"A {job_type} needs at least one acceptance criterion "
+                "before it can be published."
+            ),
+        )
+
+
 @router.post(
     "",
     response_model=JobResponse,
@@ -39,6 +56,9 @@ def create_job(
     db: Session = Depends(get_db),
 ):
     require_side(user, CLIENT_SIDE, "post jobs")
+    _require_criteria_for_evaluable_types(
+        job_data.job_type, len(job_data.criteria)
+    )
     job = Job(
         customer_id=user.id,
         title=job_data.title,
@@ -47,6 +67,14 @@ def create_job(
         location=job_data.location,
         budget=job_data.budget,
         currency=job_data.currency,
+        criteria=[
+            JobCriterion(position=index, text=item.text, required=item.required)
+            for index, item in enumerate(job_data.criteria)
+        ],
+        job_type=job_data.job_type,
+        work_mode=job_data.work_mode,
+        deadline=job_data.deadline,
+        min_worker_level=job_data.min_worker_level,
     )
 
     try:
@@ -300,12 +328,54 @@ def update_job(
             detail="Provide at least one field to update.",
         )
 
+    # Criteria are handled separately from the scalar fields below:
+    # a provided list replaces the whole set, and the set is locked
+    # once work has started (a contract exists) so the agreed
+    # acceptance criteria can never silently change mid-engagement.
+    # Read from job_data (not the dump): model_dump(exclude_unset=True)
+    # would drop nested fields the user omitted, like required's default.
+    update_data.pop("criteria", None)
+    criteria_provided = "criteria" in job_data.model_fields_set
+
     for field, value in update_data.items():
-        if value is None and field != "budget":
+        if value is None and field not in ("budget", "deadline"):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"{field} cannot be null.",
             )
+
+    if criteria_provided and job_data.criteria is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="criteria cannot be null.",
+        )
+
+    # Publish rule, evaluated against the FINAL state: a job that is or
+    # becomes evaluable must end the edit with at least one criterion.
+    final_job_type = update_data.get("job_type", job.job_type)
+    final_criteria_count = (
+        len(job_data.criteria) if criteria_provided else len(job.criteria)
+    )
+    _require_criteria_for_evaluable_types(final_job_type, final_criteria_count)
+
+    if criteria_provided and job_data.criteria is not None:
+        has_contract = (
+            db.query(Contract).filter(Contract.job_id == job_id).first()
+            is not None
+        )
+        if has_contract:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Acceptance criteria are locked once a contract exists "
+                    "for this job."
+                ),
+            )
+        job.criteria.clear()
+        job.criteria.extend(
+            JobCriterion(position=index, text=item.text, required=item.required)
+            for index, item in enumerate(job_data.criteria)
+        )
 
     for field, value in update_data.items():
         setattr(job, field, value)

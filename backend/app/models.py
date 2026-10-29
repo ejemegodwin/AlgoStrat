@@ -64,6 +64,18 @@ class Job(Base):
             "status IN ('open', 'closed')",
             name="ck_jobs_status",
         ),
+        CheckConstraint(
+            "job_type IN ('standard', 'starter_task', 'placement_check')",
+            name="ck_jobs_job_type",
+        ),
+        CheckConstraint(
+            "work_mode IN ('remote', 'in_person')",
+            name="ck_jobs_work_mode",
+        ),
+        CheckConstraint(
+            "min_worker_level BETWEEN 0 AND 3",
+            name="ck_jobs_min_worker_level",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -79,6 +91,22 @@ class Job(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="open"
     )
+    # starter_task = small evaluable task for newcomers; placement_check
+    # = category assessment task (Phase 5). Standard is the default.
+    job_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="standard"
+    )
+    work_mode: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="remote"
+    )
+    deadline: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # Gates applications by the worker's computed level (Phase 4);
+    # 0 = open to everyone, newcomers included.
+    min_worker_level: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -86,6 +114,41 @@ class Job(Base):
     )
 
     customer: Mapped["User"] = relationship(back_populates="jobs")
+    criteria: Mapped[list["JobCriterion"]] = relationship(
+        back_populates="job",
+        cascade="all, delete-orphan",
+        order_by="JobCriterion.position",
+        lazy="selectin",
+    )
+
+
+class JobCriterion(Base):
+    """One written acceptance criterion on a job.
+
+    The backbone of the verifiable-work thesis: reviews evaluate the
+    submission against these, and the completion receipt snapshots them.
+    Editable only while the job is open and has no contract — criteria
+    must not silently change after work has started.
+    """
+
+    __tablename__ = "job_criteria"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    text: Mapped[str] = mapped_column(String(500), nullable=False)
+    required: Mapped[bool] = mapped_column(
+        nullable=False, default=True, server_default="true"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    job: Mapped["Job"] = relationship(back_populates="criteria")
 
 
 class JobApplication(Base):
@@ -120,6 +183,15 @@ class JobApplication(Base):
         ForeignKey("users.id"), nullable=False, index=True
     )
     cover_letter: Mapped[str] = mapped_column(Text, nullable=False)
+    # The worker's proposal: what they'd charge and how long they'd
+    # take. None = "as listed in the job".
+    proposed_price: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )
+    proposed_currency: Mapped[str | None] = mapped_column(
+        String(3), nullable=True
+    )
+    estimated_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending"
     )

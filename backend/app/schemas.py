@@ -98,6 +98,28 @@ class UserLogin(BaseModel):
         return _normalize_email(value)
 
 
+class JobCriterionInput(BaseModel):
+    # strip_whitespace + min_length=1 rejects whitespace-only text.
+    text: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=500),
+    ]
+    required: bool = True
+
+
+class JobCriterionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    position: int
+    text: str
+    required: bool
+
+
+# Bounds a job's criteria list so payloads stay sane.
+CRITERIA_MAX_COUNT = 20
+
+
 class JobCreate(BaseModel):
     title: Annotated[
         str,
@@ -117,6 +139,18 @@ class JobCreate(BaseModel):
         str,
         StringConstraints(strip_whitespace=True, max_length=120),
     ] | None = None
+    # Written acceptance criteria (the verifiable-work thesis). Optional
+    # for standard jobs; starter tasks and placement checks MUST have at
+    # least one (enforced in the router, which knows the final state).
+    criteria: list[JobCriterionInput] = Field(
+        default_factory=list, max_length=CRITERIA_MAX_COUNT
+    )
+    job_type: str = Field(
+        default="standard", pattern="^(standard|starter_task|placement_check)$"
+    )
+    work_mode: str = Field(default="remote", pattern="^(remote|in_person)$")
+    deadline: datetime | None = None
+    min_worker_level: int = Field(default=0, ge=0, le=3)
 
     @field_validator("currency")
     @classmethod
@@ -141,6 +175,11 @@ class JobResponse(BaseModel):
     status: str
     category: str | None
     location: str | None
+    criteria: list[JobCriterionResponse] = []
+    job_type: str
+    work_mode: str
+    deadline: datetime | None
+    min_worker_level: int
 
 
 class JobUpdate(BaseModel):
@@ -162,6 +201,20 @@ class JobUpdate(BaseModel):
         str,
         StringConstraints(strip_whitespace=True, max_length=120),
     ] | None = None
+    # None = unchanged; a provided list REPLACES all criteria (router
+    # rejects the change once a contract exists for the job).
+    criteria: list[JobCriterionInput] | None = Field(
+        default=None, max_length=CRITERIA_MAX_COUNT
+    )
+    job_type: str | None = Field(
+        default=None, pattern="^(standard|starter_task|placement_check)$"
+    )
+    work_mode: str | None = Field(
+        default=None, pattern="^(remote|in_person)$"
+    )
+    # Null clears the deadline (same convention as budget).
+    deadline: datetime | None = None
+    min_worker_level: int | None = Field(default=None, ge=0, le=3)
 
     @field_validator("currency")
     @classmethod
@@ -184,6 +237,17 @@ class JobApplicationCreate(BaseModel):
             strip_whitespace=True, min_length=20, max_length=5000
         ),
     ]
+    # Optional proposal: price/currency/pace. None = "as the job lists".
+    proposed_price: Decimal | None = Field(default=None, gt=0)
+    proposed_currency: str | None = None
+    estimated_days: int | None = Field(default=None, ge=1, le=365)
+
+    @field_validator("proposed_currency")
+    @classmethod
+    def normalize_proposed_currency(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return _normalize_currency(value)
 
 
 class JobApplicationResponse(BaseModel):
@@ -194,6 +258,9 @@ class JobApplicationResponse(BaseModel):
     applicant_id: int
     cover_letter: str
     status: str
+    proposed_price: Decimal | None
+    proposed_currency: str | None
+    estimated_days: int | None
     created_at: datetime
 
 
