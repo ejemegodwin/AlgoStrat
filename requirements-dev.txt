@@ -4,4 +4,5 @@
 -r requirements.txt
 
 pytest==9.1.1
-httpx2==2.14.0
+# httpx is required by FastAPI's TestClient (starlette imports it at runtime).
+httpx==0.28.1
