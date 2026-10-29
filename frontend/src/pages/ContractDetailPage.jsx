@@ -131,10 +131,13 @@ function MilestoneForm({ contractId, milestone, onDone, onCancel }) {
 
 // The worker's half of the loop: a note describing what was delivered
 // (the API requires at least 10 characters — "done" is not a
-// submission).
+// submission) plus evidence references — links, repo paths, file names;
+// one per line. Evidence becomes part of the permanent record reviews,
+// disputes, and the eventual receipt point at (ADR-020).
 function SubmitForm({ milestone, onDone, onCancel }) {
   const { token } = useAuth();
   const [note, setNote] = useState("");
+  const [evidenceText, setEvidenceText] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -142,11 +145,15 @@ function SubmitForm({ milestone, onDone, onCancel }) {
     event.preventDefault();
     setError(null);
     setSubmitting(true);
+    const evidence = evidenceText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line !== "");
     try {
       await api(`/milestones/${milestone.id}/submit`, {
         method: "POST",
         token,
-        body: { note },
+        body: { note, evidence },
       });
       onDone();
     } catch (err) {
@@ -169,6 +176,15 @@ function SubmitForm({ milestone, onDone, onCancel }) {
           onChange={(event) => setNote(event.target.value)}
         />
       </label>
+      <label>
+        Evidence references (optional, one per line — links, paths, commits)
+        <textarea
+          rows={3}
+          value={evidenceText}
+          onChange={(event) => setEvidenceText(event.target.value)}
+          placeholder={"https://…\ncommit abc123\ncleaned-export.csv"}
+        />
+      </label>
       {error && <p className="error">{error}</p>}
       <div className="actions">
         <button type="submit" disabled={submitting}>
@@ -179,6 +195,67 @@ function SubmitForm({ milestone, onDone, onCancel }) {
         </button>
       </div>
     </form>
+  );
+}
+
+// The full revision chain of a milestone: every submission with its
+// evidence and the review it received. Loaded on demand — most
+// milestones are looked at for their latest state only.
+function SubmissionHistory({ milestone }) {
+  const { token } = useAuth();
+  const [submissions, setSubmissions] = useState(null);
+  const [error, setError] = useState(null);
+
+  async function load() {
+    setError(null);
+    try {
+      setSubmissions(
+        await api(`/milestones/${milestone.id}/submissions`, { token }),
+      );
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  if (submissions === null) {
+    return (
+      <div className="actions">
+        {error && <p className="error">{error}</p>}
+        <button type="button" className="link" onClick={load}>
+          Show submission history
+        </button>
+      </div>
+    );
+  }
+  if (submissions.length === 0) {
+    return <p className="meta">No submissions yet.</p>;
+  }
+  return (
+    <ol className="card-list">
+      {submissions.map((submission, index) => (
+        <li key={submission.id} className="card">
+          <p className="meta">
+            Attempt {index + 1} · {formatDateTime(submission.submitted_at)}
+            {submission.review_decision && (
+              <> · {submission.review_decision.replaceAll("_", " ")}</>
+            )}
+          </p>
+          <p className="description">{submission.note}</p>
+          {submission.evidence.length > 0 && (
+            <ul>
+              {submission.evidence.map((ref, i) => (
+                <li key={i} className="meta">
+                  {ref}
+                </li>
+              ))}
+            </ul>
+          )}
+          {submission.review_note && (
+            <p className="meta">Review note: {submission.review_note}</p>
+          )}
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -334,6 +411,12 @@ function MilestoneCard({ milestone, isClient, contractActive, onChanged }) {
           <strong>Submission:</strong> {milestone.submission_note}
         </p>
       )}
+      {milestone.latest_evidence && milestone.latest_evidence.length > 0 && (
+        <p className="meta">
+          Evidence: {milestone.latest_evidence.join(" · ")}
+        </p>
+      )}
+      <SubmissionHistory milestone={milestone} />
       {error && <p className="error">{error}</p>}
 
       {form === "edit" && (
@@ -401,6 +484,53 @@ function MilestoneCard({ milestone, isClient, contractActive, onChanged }) {
   );
 }
 
+// The sealed outcome of a completed contract: the signed receipt (its
+// uuid, hash, and headline numbers) plus a link anyone can use to
+// verify it — no account needed (ADR-021).
+function ReceiptCard({ contractId }) {
+  const { token } = useAuth();
+  const [receipt, setReceipt] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api(`/contracts/${contractId}/receipt`, { token })
+      .then((data) => {
+        if (!cancelled) setReceipt(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contractId, token]);
+
+  if (error) return <p className="error">{error}</p>;
+  if (receipt === null) return <p className="meta">Loading receipt…</p>;
+
+  const payload = receipt.payload;
+  return (
+    <section>
+      <h2>Work receipt</h2>
+      <p className="description">
+        This completion is sealed by a signed, tamper-evident receipt.{" "}
+        <Link to={`/verify/${receipt.receipt_uuid}`}>
+          Anyone can verify it publicly
+        </Link>{" "}
+        — no account needed, no private data exposed.
+      </p>
+      <p className="meta">Receipt ID: {receipt.receipt_uuid}</p>
+      <p className="meta">Content hash (SHA-256): {receipt.content_hash}</p>
+      <p className="meta">
+        Criteria sealed: {payload.criteria.length}
+        {" · "}Milestones approved: {payload.outcome.approved_milestones}
+        {" · "}Revision cycles: {payload.outcome.revision_cycles}
+      </p>
+    </section>
+  );
+}
+
 // Human-readable labels for the audit log; unknown types fall back to
 // their raw name with spaces so a new event type never renders blank.
 const EVENT_LABELS = {
@@ -415,6 +545,7 @@ const EVENT_LABELS = {
   changes_requested: "Changes requested",
   contract_completed: "Contract completed",
   contract_cancelled: "Contract cancelled",
+  receipt_issued: "Work receipt issued",
   dispute_raised: "Dispute raised",
 };
 
@@ -685,6 +816,30 @@ export default function ContractDetailPage() {
           </>
         )}
       </p>
+
+      {contract.criteria_snapshot && contract.criteria_snapshot.length > 0 && (
+        <section>
+          <h2>What was agreed</h2>
+          <p className="meta">
+            Acceptance criteria frozen at hire — reviews and the work
+            receipt judge against this list, whatever the job says now.
+          </p>
+          <ol>
+            {contract.criteria_snapshot.map((criterion) => (
+              <li key={criterion.position}>
+                {criterion.text}
+                {!criterion.required && (
+                  <span className="meta"> (optional)</span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {contract.status === "completed" && (
+        <ReceiptCard contractId={contract.id} />
+      )}
 
       <section>
         <h2>Milestones</h2>

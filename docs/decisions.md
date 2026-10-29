@@ -3,6 +3,90 @@
 Concise records of significant decisions, so future sessions build on
 them instead of re-litigating them. Newest first.
 
+## ADR-023: Profile details and the verified/self-reported skill split (2026-10-29)
+
+- Worker profiles gain optional presentation fields: headline, bio,
+  country, timezone. Optional because a profile is useful long before
+  it is polished; the pilot's first users should not face a form wall.
+- Every skill tag carries a `verified` flag that ONLY platform
+  processes may set (placement checks, later). Workers declare skills;
+  they can never self-verify — the API has no path that sets it.
+- Responses always present the two lists separately (`skills` vs
+  `verified_skills`) so the UI can label claims as claims.
+- The profile PUT is a full replace, but verification survives it: a
+  verified tag keeps its flag while the worker keeps the same value;
+  dropping the value drops the verification with it.
+
+## ADR-022: Worker levels 0-3 are derived from receipts, never stored (2026-10-29)
+
+- A level is computed on read from the receipts table — the one
+  tamper-evident source of truth — so it can never drift from the
+  history it claims to summarize, and there is no column to game.
+- Thresholds are deliberately hand-computable: L1 = 1 verified
+  completion; L2 = 3 completions across 2 distinct clients; L3 = 5
+  completions across 3 distinct clients.
+- Distinct clients are required so one friendly repeat client cannot
+  single-handedly carry a worker up. Revision cycles are NOT counted:
+  asking for changes is a normal part of work, not a demerit.
+- `GET /workers/me/level` returns the level WITH its recorded inputs
+  and exactly what is missing for the next one — explainability is
+  the requirement, not a nicety.
+- Jobs with `min_worker_level > 0` refuse under-level applications
+  (403) with the reason and a pointer to the level endpoint.
+
+## ADR-021: Signed work receipts + public verification (2026-10-29)
+
+- Every completed contract issues exactly one `WorkReceipt` inside the
+  completion transaction: completion and receipt commit or roll back
+  together, so a verified completion ALWAYS has its receipt.
+- The payload is canonical JSON (sorted keys, tight separators) →
+  SHA-256 content hash → HMAC-SHA256 signature with a server-side
+  `RECEIPT_SIGNING_KEY`. Stdlib only — no new dependencies, per the
+  v2 constraints.
+- Receipts are append-only. One per contract (unique constraint);
+  corrections would be new superseding records, never edits. Any
+  change to the stored payload flips verification to `invalid`.
+- Privacy is structural, not policy: the signed payload contains the
+  worker, the job (title/category/type), the frozen criteria, outcome
+  counts, and evidence HASHES — never the client, never amounts,
+  never the evidence references themselves.
+- Public `GET /verify/{uuid}` answers valid / invalid / not_found for
+  anyone, no account, rate-limited, with minimal display fields.
+- The signing key is required-at-use, not at-boot: environments
+  without it run everything except completion, which fails 503
+  cleanly. Rotating the key invalidates old receipts' signatures —
+  treat it as permanent once real receipts exist.
+
+## ADR-020: Submissions are records with evidence refs (2026-10-29)
+
+- Every work submission is its own row (note + evidence refs +
+  submitted_at + review outcome); the milestone row keeps only the
+  latest state. Reviews annotate the exact submission they judged, so
+  resubmissions never rewrite history.
+- Evidence is REFERENCES (links, repo paths, file names), not file
+  uploads — controlled storage is a deliberate later decision; the
+  schema doesn't change when it arrives.
+- The full history endpoint is party-only: evidence links may be
+  private. Receipts reference evidence by hash only (ADR-021), so the
+  public never sees them.
+
+## ADR-019: Acceptance criteria + hire-time snapshot (2026-10-29)
+
+- Jobs carry 0-20 written acceptance criteria (text + required flag,
+  ordered). They are the thesis foundation: reviews and receipts judge
+  work against what was agreed, not against memory.
+- Evaluable job types (`starter_task`, `placement_check`) REQUIRE at
+  least one criterion, enforced server-side against the FINAL state
+  after an edit — you cannot add the type and remove the criteria in
+  one update.
+- At hire, the criteria are copied into an immutable
+  `contracts.criteria_snapshot`: a later job edit can never rewrite
+  what the worker agreed to. Reviews and receipts rely on the snapshot.
+- Structured job fields landed with them: job_type, work_mode,
+  deadline, min_worker_level (all CHECK-constrained), plus optional
+  proposal fields on applications (price/currency/ETA) so a worker can
+  state terms up front.
+
 ## ADR-018: account_type becomes the marketplace side (2026-10-28)
 
 Product decisions (owner-approved):

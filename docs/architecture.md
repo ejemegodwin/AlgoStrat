@@ -26,13 +26,16 @@ backend/
       applications.py  # apply, list, decide, withdraw, ranked applicants
       contracts.py     # contracts, milestones, events, disputes (party side)
       payouts.py       # worker withdrawals
-      profiles.py      # worker profile + tags (matching input)
+      profiles.py      # worker profile + tags (matching input), /workers/me/level
+      receipts.py      # contract receipt view, history, public /verify
       ledger.py        # balances, per-contract ledger view
       admin.py         # admin dispute queue + resolution
     services/          # business logic shared across routes
       ledger.py        # double-entry posting, reversals (ADR-009, ADR-011)
       payments.py      # provider port: charge/transfer/refund (ADR-012)
       matching.py      # explainable 4-factor scoring (ADR-010)
+      receipts.py      # canonical JSON -> SHA-256 -> HMAC signing (ADR-021)
+      levels.py        # worker levels 0-3 derived from receipts (ADR-022)
   migrations/          # Alembic; never edit an applied migration
 frontend/
   src/
@@ -69,6 +72,18 @@ These are the load-bearing ideas; changing them without an ADR is a red flag.
   budget 0.20, track record 0.25 capped, reliability 0.15), identical
   factors in both directions, newcomers scored neutral rather than
   punished (ADR-010).
+- **Agreements are frozen at hire.** The job's acceptance criteria are
+  snapshotted onto the contract at accept time; reviews and receipts
+  judge against the snapshot, never the edited job (ADR-019).
+- **Completion mints a receipt, atomically.** `complete_contract` issues
+  the signed `WorkReceipt` in the same transaction — no receipt, no
+  completion. Receipts are append-only and publicly verifiable without
+  an account; privacy is structural (no client, amounts, or evidence
+  refs in the signed payload — ADR-021).
+- **Trust is derived, not declared.** Worker levels are computed from
+  the receipts table on read (no column to drift or game), and skills
+  are structurally split into self-reported vs platform-verified
+  (ADR-022, ADR-023).
 
 ## Request flow
 

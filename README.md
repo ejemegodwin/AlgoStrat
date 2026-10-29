@@ -28,15 +28,29 @@ AlgoStrat makes it easier for people and businesses to find work, hire talent, a
 - Create, update, and close your own jobs; closed jobs reject remaining pending applications
 - Browse open jobs with pagination, keyword search, and budget/currency/category/location filters
 - Currency codes normalized and validated against a curated allowlist
+- **Written acceptance criteria** on jobs (0–20, ordered, required/optional) — the standard work is reviewed against (ADR-019)
+- Structured job fields: job type (`standard` / `starter_task` / `placement_check`), work mode, deadline, minimum worker level — evaluable types must have criteria (ADR-019)
 
 ### Applications and Hiring
-- Apply with a cover letter; no duplicate or self applications; withdraw while pending
+- Apply with a cover letter and optional proposal (price/currency/ETA); no duplicate or self applications; withdraw while pending
 - Accepting an application is an **atomic hire**: the job closes, other pending applications are rejected, and a contract is created — in one transaction, with row locking and a one-accepted-per-job database constraint (ADR-001)
+- The hire freezes an **immutable criteria snapshot** onto the contract: later job edits never rewrite what the worker agreed to (ADR-019)
 
 ### Contracts and Milestones
 - Contract auto-created on hire; client defines milestones with optional prices
 - Submit → review loop with revision requests; client-only complete/cancel
+- Every submission is a permanent **record with evidence references**; reviews annotate the exact submission judged — history is never rewritten (ADR-020)
 - Append-only audit log of every contract event (ADR-008)
+
+### Work Receipts and Verification
+- Completing a contract issues one **immutable, cryptographically signed work receipt** in the same transaction: canonical JSON → SHA-256 → server-side HMAC (ADR-021)
+- Receipts prove *what* was done (job, frozen criteria, outcome counts, evidence **hashes**) without exposing the client, amounts, or evidence links — privacy is structural
+- **Public verification** (`GET /verify/{uuid}`, no account needed): valid / invalid / not_found — tampered history verifiably fails
+- Workers carry their receipts as a portable, verifiable work history
+
+### Worker Levels
+- Levels 0–3 **computed from receipts**, never stored or self-reported; thresholds are simple and shown with exactly what's missing for the next level (ADR-022)
+- Jobs can require a minimum level; under-level applications get a clear refusal, not a silent filter
 
 ### Payments and Payouts
 - Double-entry, append-only accrual ledger; derived balances; configurable platform fee (ADR-009)
@@ -58,7 +72,7 @@ AlgoStrat makes it easier for people and businesses to find work, hire talent, a
 - Role- and status-aware pages; payment tokens on priced approvals; 402s shown as safe retries
 
 ### Testing and Quality
-- 195+ automated tests: authentication, jobs, applications, contracts, milestones, ledger, payments, payouts, disputes, matching, validation, rate limiting, access control
+- 249 automated tests: authentication, jobs, applications, contracts, milestones, submissions, receipts, levels, ledger, payments, payouts, disputes, matching, validation, rate limiting, access control
 - SQLite-based unit tests plus PostgreSQL integration tests for locking and concurrency
 - GitHub Actions runs migrations and the full suite on PostgreSQL for every push and PR
 
@@ -87,17 +101,22 @@ Side-gated endpoints additionally require the matching `account_type`
 | `PATCH` | `/jobs/{job_id}/applications/{application_id}` | Accept (hire) or reject | Owner |
 | `GET` | `/applications/me` | Your own applications and statuses | Yes |
 | `PATCH` | `/applications/{application_id}/withdraw` | Withdraw a pending application | Applicant |
-| `GET` | `/profiles/me/worker` | Your worker profile | Yes |
-| `PUT` | `/profiles/me/worker` | Create/update worker profile and tags | Worker side |
+| `GET` | `/profiles/me/worker` | Your worker profile (skills split: self-reported vs verified) | Yes |
+| `PUT` | `/profiles/me/worker` | Create/update worker profile, details and tags | Worker side |
+| `GET` | `/workers/me/level` | Your level (0–3), its inputs, and what's missing next | Yes |
 | `GET` | `/contracts` | Your contracts (either party) | Yes |
 | `GET` | `/contracts/{contract_id}` | Contract detail with milestones | Party |
 | `GET` | `/contracts/{contract_id}/events` | Audit log | Party |
 | `POST` | `/contracts/{contract_id}/milestones` | Add a milestone | Client party |
 | `PATCH` | `/milestones/{milestone_id}` | Edit a pending milestone | Client party |
 | `DELETE` | `/milestones/{milestone_id}` | Delete a pending milestone | Client party |
-| `POST` | `/milestones/{milestone_id}/submit` | Submit work for review | Worker party |
+| `POST` | `/milestones/{milestone_id}/submit` | Submit work with evidence references | Worker party |
+| `GET` | `/milestones/{milestone_id}/submissions` | Full submission/revision history | Party |
 | `POST` | `/milestones/{milestone_id}/review` | Approve (pays if priced) or request changes | Client party |
-| `POST` | `/contracts/{contract_id}/complete` | Complete the contract | Client party |
+| `POST` | `/contracts/{contract_id}/complete` | Complete the contract (issues the receipt) | Client party |
+| `GET` | `/contracts/{contract_id}/receipt` | The signed work receipt | Party |
+| `GET` | `/receipts/me` | Your verifiable work history | Yes |
+| `GET` | `/verify/{receipt_uuid}` | Public receipt verification (valid/invalid/not_found) | No |
 | `POST` | `/contracts/{contract_id}/cancel` | Cancel the contract | Client party |
 | `POST` | `/contracts/{contract_id}/disputes` | Raise a dispute (freezes contract) | Party |
 | `GET` | `/contracts/{contract_id}/disputes` | Dispute history for a contract | Party |
@@ -160,8 +179,9 @@ cp .env.example .env
 
 `.env.example` documents every variable (`DATABASE_URL`,
 `JWT_SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`,
-`PLATFORM_FEE_PERCENT`, `PAYMENT_PROVIDER`, `CORS_ORIGINS`) without
-values. Keep `.env` private — never commit credentials.
+`PLATFORM_FEE_PERCENT`, `PAYMENT_PROVIDER`, `CORS_ORIGINS`,
+`RECEIPT_SIGNING_KEY`) without values. Keep `.env` private — never
+commit credentials.
 
 ### 5. Apply database migrations
 

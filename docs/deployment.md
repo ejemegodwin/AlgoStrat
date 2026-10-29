@@ -42,7 +42,9 @@ Whatever the host, these are the moving parts:
   `ep-cold-sea` endpoint), `JWT_SECRET_KEY`, `JWT_ALGORITHM`,
   `ACCESS_TOKEN_EXPIRE_MINUTES`, `PLATFORM_FEE_PERCENT`,
   `PAYMENT_PROVIDER=simulated`, `CORS_ORIGINS` = the real SPA origin
-  (comma-separated allowlist, never `*`)
+  (comma-separated allowlist, never `*`), `RECEIPT_SIGNING_KEY` =
+  freshly generated, then PERMANENT (rotating it invalidates every
+  issued receipt's signature — ADR-021)
 
 ### SPA (static site)
 

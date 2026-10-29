@@ -152,9 +152,41 @@ export default function JobDetailPage() {
           : "No budget stated"}
         {job.category && <> · {job.category}</>}
         {job.location && <> · {job.location}</>}
+        {" · "}
+        {job.job_type === "standard"
+          ? "Standard job"
+          : job.job_type === "starter_task"
+            ? "Starter task"
+            : "Placement check"}
+        {" · "}
+        {job.work_mode === "remote" ? "Remote" : "In person"}
+        {job.deadline && (
+          <> · Deadline: {new Date(job.deadline).toLocaleDateString()}</>
+        )}
+        {job.min_worker_level > 0 && (
+          <> · Requires worker level {job.min_worker_level}+</>
+        )}
         {" · "}Status: {job.status}
       </p>
       <p className="description">{job.description}</p>
+      {job.criteria && job.criteria.length > 0 && (
+        <section>
+          <h2>Acceptance criteria</h2>
+          <p className="meta">
+            The work is reviewed — and its receipt issued — against these.
+          </p>
+          <ol>
+            {job.criteria.map((criterion) => (
+              <li key={criterion.position}>
+                {criterion.text}
+                {!criterion.required && (
+                  <span className="meta"> (optional)</span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
       {user && user.id === job.customer_id ? (
         <ApplicantsSection job={job} onJobChanged={loadJob} />
       ) : (
