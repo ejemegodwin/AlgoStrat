@@ -461,7 +461,12 @@ def test_client_can_complete_a_contract_when_no_milestones_are_open(client):
     assert contract["milestones"][0]["status"] == "approved"
 
     events = get_events(client, contract_id, owner_headers)
-    assert events[-1]["event_type"] == "contract_completed"
+    # Completion is sealed by its work receipt (§12): the receipt event
+    # is recorded right after contract_completed, in the same transaction.
+    assert [e["event_type"] for e in events[-2:]] == [
+        "contract_completed",
+        "receipt_issued",
+    ]
 
 
 def test_client_can_complete_a_contract_with_no_milestones_at_all(client):
@@ -565,6 +570,7 @@ def test_contract_events_are_returned_in_chronological_order(client):
         "milestone_submitted",
         "review_approved",
         "contract_completed",
+        "receipt_issued",
     ]
 
 

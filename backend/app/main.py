@@ -14,6 +14,7 @@ from app.routers import (
     ledger,
     payouts,
     profiles,
+    receipts,
 )
 
 app = FastAPI(title="AlgoStrat API")
@@ -44,6 +45,7 @@ app.include_router(ledger.router)
 app.include_router(profiles.router)
 app.include_router(admin.router)
 app.include_router(payouts.router)
+app.include_router(receipts.router)
 
 
 @app.get("/")

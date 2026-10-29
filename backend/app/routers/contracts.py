@@ -12,7 +12,9 @@ from app.db_session import get_db
 from app.models import Contract, ContractEvent, Dispute, Milestone, Submission
 from app.services import ledger as ledger_service
 from app.services import payments as payments_service
+from app.services import receipts as receipts_service
 from app.services.payments import ChargeDeclinedError
+from app.services.receipts import ReceiptSigningUnavailableError
 from app.schemas import (
     ContractDetailResponse,
     ContractEventResponse,
@@ -511,6 +513,21 @@ def complete_contract(
     contract.status = "completed"
     contract.completed_at = datetime.now(timezone.utc)
     record_event(db, contract.id, user_id, "contract_completed")
+
+    # A verified completion ALWAYS produces its receipt (§12): issue it
+    # inside the same transaction so the two commit or roll back
+    # together. If the signing key is missing the completion must not
+    # silently succeed receipt-less.
+    try:
+        receipts_service.issue_receipt(db, contract=contract, actor_id=user_id)
+    except ReceiptSigningUnavailableError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Receipt signing is not configured on this server "
+                "(RECEIPT_SIGNING_KEY)."
+            ),
+        )
 
     commit_or_503(db)
     db.refresh(contract)

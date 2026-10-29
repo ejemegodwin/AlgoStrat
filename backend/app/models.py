@@ -383,6 +383,42 @@ class ContractEvent(Base):
     )
 
 
+class WorkReceipt(Base):
+    """Tamper-evident proof of one verified completion (§12.3).
+
+    Issued exactly once per completed contract, inside the completion
+    transaction, and never edited: the canonical payload, its SHA-256
+    content hash, and the server-side HMAC signature are stored together,
+    so any later change to the payload flips verification to 'invalid'.
+    Public verification needs nothing private — evidence appears only as
+    hashes, the client not at all, and no amounts.
+    """
+
+    __tablename__ = "work_receipts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    receipt_uuid: Mapped[str] = mapped_column(
+        String(36), nullable=False, unique=True, index=True
+    )
+    worker_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
+    # One receipt per contract — corrections are superseding records,
+    # never edits.
+    contract_id: Mapped[int] = mapped_column(
+        ForeignKey("contracts.id"), nullable=False, unique=True
+    )
+    # Canonical JSON (sorted keys, tight separators) exactly as hashed.
+    payload: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    signature: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class LedgerAccount(Base):
     """One account per owner + type + currency (ADR-009). Balances are
     derived from entries, never stored."""

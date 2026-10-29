@@ -409,6 +409,51 @@ class SubmissionResponse(BaseModel):
         return value
 
 
+class ReceiptResponse(BaseModel):
+    """Full receipt, visible to the contract parties only."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    receipt_uuid: str
+    contract_id: int
+    worker_id: int
+    # The canonical payload exactly as hashed (served parsed).
+    payload: dict
+    content_hash: str
+    signature: str
+    created_at: datetime
+
+    @field_validator("payload", mode="before")
+    @classmethod
+    def parse_payload(cls, value):
+        if isinstance(value, str):
+            return json.loads(value)
+        return value
+
+
+class ReceiptSummary(BaseModel):
+    """One line of a worker's receipt history (their own view)."""
+
+    receipt_uuid: str
+    contract_id: int
+    job_title: str
+    # Jobs may have no category; receipts must still summarize.
+    job_category: str | None
+    completed_at: datetime | None
+    created_at: datetime
+
+
+class VerifyResponse(BaseModel):
+    """Public verification: valid / invalid / not_found, with minimal
+    fields on success — no client identity, no amounts, no evidence refs."""
+
+    status: str
+    worker_name: str | None = None
+    job_title: str | None = None
+    job_category: str | None = None
+    completed_at: datetime | None = None
+
+
 class MilestoneReview(BaseModel):
     decision: str = Field(pattern="^(approve|request_changes)$")
     note: Annotated[
