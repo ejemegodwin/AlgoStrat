@@ -34,8 +34,21 @@ def _profile_response(db: Session, user_id: int) -> WorkerProfileResponse:
     return WorkerProfileResponse(
         availability=profile.availability if profile else "available",
         min_budget=profile.min_budget if profile else None,
-        skills=[tag.value for tag in tags if tag.kind == "skill"],
+        headline=profile.headline if profile else None,
+        bio=profile.bio if profile else None,
+        country=profile.country if profile else None,
+        timezone=profile.timezone if profile else None,
+        # The split that matters (§10): what the worker claims vs what
+        # the platform has verified — always presented separately.
+        skills=[
+            tag.value
+            for tag in tags
+            if tag.kind == "skill" and not tag.verified
+        ],
         categories=[tag.value for tag in tags if tag.kind == "category"],
+        verified_skills=[
+            tag.value for tag in tags if tag.kind == "skill" and tag.verified
+        ],
     )
 
 
@@ -81,9 +94,24 @@ def upsert_my_worker_profile(
 
     profile.availability = profile_data.availability
     profile.min_budget = profile_data.min_budget
+    profile.headline = profile_data.headline
+    profile.bio = profile_data.bio
+    profile.country = profile_data.country
+    profile.timezone = profile_data.timezone
     profile.updated_at = datetime.now(timezone.utc)
 
     # PUT is a full replace: the submitted tag lists become the profile.
+    # Verification survives the replace: a tag the platform verified
+    # stays verified as long as the worker keeps the same value — only
+    # platform processes may ever SET verified, but a profile edit must
+    # not silently strip it either.
+    previously_verified = {
+        (tag.kind, tag.value)
+        for tag in db.query(ProfileTag).filter(
+            ProfileTag.user_id == user_id,
+            ProfileTag.verified.is_(True),
+        )
+    }
     db.query(ProfileTag).filter(ProfileTag.user_id == user_id).delete(
         synchronize_session=False
     )
@@ -92,7 +120,14 @@ def upsert_my_worker_profile(
         ("category", profile_data.categories),
     ):
         for value in values:
-            db.add(ProfileTag(user_id=user_id, kind=kind, value=value))
+            db.add(
+                ProfileTag(
+                    user_id=user_id,
+                    kind=kind,
+                    value=value,
+                    verified=(kind, value) in previously_verified,
+                )
+            )
 
     try:
         db.commit()

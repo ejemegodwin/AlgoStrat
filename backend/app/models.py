@@ -647,6 +647,11 @@ class WorkerProfile(Base):
     min_budget: Mapped[Decimal | None] = mapped_column(
         Numeric(12, 2), nullable=True
     )
+    # Presentation fields (§10): optional self-description.
+    headline: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    country: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    timezone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -676,6 +681,11 @@ class ProfileTag(Base):
     )
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
     value: Mapped[str] = mapped_column(String(50), nullable=False)
+    # True only when the platform verified this tag (placement checks,
+    # Phase 5). Workers declare tags; they can never self-verify.
+    verified: Mapped[bool] = mapped_column(
+        nullable=False, default=False, server_default="false"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

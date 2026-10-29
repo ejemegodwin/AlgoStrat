@@ -33,8 +33,13 @@ def test_profile_defaults_when_never_created(client):
     assert profile == {
         "availability": "available",
         "min_budget": None,
+        "headline": None,
+        "bio": None,
+        "country": None,
+        "timezone": None,
         "skills": [],
         "categories": [],
+        "verified_skills": [],
     }
 
 

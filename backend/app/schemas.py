@@ -508,6 +508,20 @@ class WorkerProfileUpsert(BaseModel):
         default="available", pattern="^(available|busy|unavailable)$"
     )
     min_budget: Decimal | None = Field(default=None, gt=0)
+    # Presentation fields: how the worker introduces themselves. All
+    # optional — a profile is useful long before it is polished.
+    headline: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=150)
+    ] | None = None
+    bio: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=5000)
+    ] | None = None
+    country: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)
+    ] | None = None
+    timezone: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)
+    ] | None = None
     skills: list[
         Annotated[
             str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)
@@ -535,8 +549,17 @@ class WorkerProfileUpsert(BaseModel):
 class WorkerProfileResponse(BaseModel):
     availability: str
     min_budget: Decimal | None
+    headline: str | None = None
+    bio: str | None = None
+    country: str | None = None
+    timezone: str | None = None
+    # Self-reported by the worker — presented as claims, never as proof.
     skills: list[str]
     categories: list[str]
+    # Verified by the platform (placement checks, Phase 5). The API
+    # never lets a worker set these; the split is structural so the UI
+    # can always show which is which.
+    verified_skills: list[str] = []
 
 
 class LevelRequirement(BaseModel):
