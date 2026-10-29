@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user_id
 from app.db_session import get_db
-from app.models import Contract, ContractEvent, Dispute, Milestone
+from app.models import Contract, ContractEvent, Dispute, Milestone, Submission
 from app.services import ledger as ledger_service
 from app.services import payments as payments_service
 from app.services.payments import ChargeDeclinedError
@@ -23,6 +24,7 @@ from app.schemas import (
     MilestoneReview,
     MilestoneSubmit,
     MilestoneUpdate,
+    SubmissionResponse,
 )
 
 router = APIRouter(tags=["contracts"])
@@ -340,9 +342,20 @@ def submit_milestone(
             detail="Only pending or changes-requested milestones can be submitted.",
         )
 
+    now = datetime.now(timezone.utc)
     milestone.status = "submitted"
     milestone.submission_note = submit_data.note
-    milestone.submitted_at = datetime.now(timezone.utc)
+    milestone.submitted_at = now
+    # Every submission is kept as its own record (revision history and
+    # evidence trail); the milestone carries only the latest state.
+    db.add(
+        Submission(
+            milestone_id=milestone.id,
+            note=submit_data.note,
+            evidence=json.dumps(submit_data.evidence),
+            submitted_at=now,
+        )
+    )
     record_event(
         db,
         contract.id,
@@ -355,6 +368,26 @@ def submit_milestone(
     commit_or_503(db)
     db.refresh(milestone)
     return milestone
+
+
+@router.get(
+    "/milestones/{milestone_id}/submissions",
+    response_model=list[SubmissionResponse],
+)
+def list_milestone_submissions(
+    milestone_id: int,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
+    if milestone is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Milestone not found.",
+        )
+    contract = load_contract(milestone.contract_id, db)
+    require_party(contract, user_id)
+    return milestone.submissions
 
 
 @router.post("/milestones/{milestone_id}/review", response_model=MilestoneResponse)
@@ -375,6 +408,16 @@ def review_milestone(
         )
 
     milestone.reviewed_at = datetime.now(timezone.utc)
+
+    # Attach the review to the exact submission it judged, so the
+    # history shows which evidence was approved or sent back.
+    latest_submission = milestone.submissions[-1] if milestone.submissions else None
+    if latest_submission is not None and latest_submission.review_decision is None:
+        latest_submission.review_decision = (
+            "approved" if review_data.decision == "approve" else "changes_requested"
+        )
+        latest_submission.review_note = review_data.note
+        latest_submission.reviewed_at = milestone.reviewed_at
 
     if review_data.decision == "approve":
         charge_reference = None
