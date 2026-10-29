@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -65,6 +67,9 @@ def apply_for_job(
         job_id=job_id,
         applicant_id=user_id,
         cover_letter=application_data.cover_letter,
+        proposed_price=application_data.proposed_price,
+        proposed_currency=application_data.proposed_currency,
+        estimated_days=application_data.estimated_days,
     )
 
     try:
@@ -289,6 +294,18 @@ def update_job_application(
             worker_id=application.applicant_id,
             agreed_amount=job.budget,
             currency=job.currency,
+            # Freeze the agreed acceptance criteria into the contract:
+            # reviews and receipts point at this copy, not the job's.
+            criteria_snapshot=json.dumps(
+                [
+                    {
+                        "position": criterion.position,
+                        "text": criterion.text,
+                        "required": criterion.required,
+                    }
+                    for criterion in job.criteria
+                ]
+            ),
         )
         db.add(contract)
         db.flush()  # assign contract.id before writing its first event

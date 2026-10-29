@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from datetime import datetime
 from typing import Annotated
@@ -268,6 +269,12 @@ class JobApplicationUpdate(BaseModel):
     status: str = Field(pattern="^(accepted|rejected)$")
 
 
+class CriterionSnapshotItem(BaseModel):
+    position: int
+    text: str
+    required: bool
+
+
 class ContractResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -279,8 +286,17 @@ class ContractResponse(BaseModel):
     agreed_amount: Decimal | None
     currency: str
     status: str
+    # The criteria the worker agreed to, frozen at hire time.
+    criteria_snapshot: list[CriterionSnapshotItem] = []
     created_at: datetime
     completed_at: datetime | None
+
+    @field_validator("criteria_snapshot", mode="before")
+    @classmethod
+    def parse_snapshot(cls, value):
+        if isinstance(value, str):
+            return json.loads(value)
+        return value
 
 
 class MilestoneResponse(BaseModel):
@@ -297,6 +313,8 @@ class MilestoneResponse(BaseModel):
     submission_note: str | None
     submitted_at: datetime | None
     reviewed_at: datetime | None
+    # Evidence refs from the latest submission (model property).
+    latest_evidence: list[str] = []
 
 
 class ContractDetailResponse(ContractResponse):
@@ -361,6 +379,34 @@ class MilestoneSubmit(BaseModel):
         str,
         StringConstraints(strip_whitespace=True, min_length=10, max_length=5000),
     ]
+    # Evidence references: links, repo paths, file names. References only
+    # — no file uploads yet. Each ref is trimmed; blanks are rejected.
+    evidence: list[
+        Annotated[
+            str,
+            StringConstraints(strip_whitespace=True, min_length=1, max_length=500),
+        ]
+    ] = Field(default_factory=list, max_length=10)
+
+
+class SubmissionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    note: str
+    evidence: list[str]
+    submitted_at: datetime
+    review_decision: str | None
+    review_note: str | None
+    reviewed_at: datetime | None
+
+    @field_validator("evidence", mode="before")
+    @classmethod
+    def parse_evidence(cls, value):
+        # Stored as JSON text; the API serves it as a real list.
+        if isinstance(value, str):
+            return json.loads(value)
+        return value
 
 
 class MilestoneReview(BaseModel):

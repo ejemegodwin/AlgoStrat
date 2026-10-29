@@ -1,4 +1,5 @@
 
+import json
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -232,6 +233,13 @@ class Contract(Base):
         Numeric(12, 2), nullable=True
     )
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    # Immutable snapshot of the job's acceptance criteria at hire time
+    # (JSON list of {position, text, required}). Written once at contract
+    # creation; reviews and receipts rely on THIS copy, so a later job
+    # edit can never rewrite what the worker agreed to.
+    criteria_snapshot: Mapped[str] = mapped_column(
+        Text, nullable=False, default="[]", server_default="[]"
+    )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="active"
     )
@@ -292,7 +300,60 @@ class Milestone(Base):
         nullable=False,
     )
 
+    submissions: Mapped[list["Submission"]] = relationship(
+        back_populates="milestone",
+        cascade="all, delete-orphan",
+        order_by="Submission.id",
+        lazy="selectin",
+    )
+
+    @property
+    def latest_evidence(self) -> list[str]:
+        """Evidence refs from the most recent submission (for responses)."""
+        if not self.submissions:
+            return []
+        return json.loads(self.submissions[-1].evidence)
+
     contract: Mapped["Contract"] = relationship(back_populates="milestones")
+
+
+class Submission(Base):
+    """One submission of work for a milestone (full revision history).
+
+    The milestone row carries the LATEST state; this table keeps every
+    attempt — the evidence reviews, disputes, and receipts point at.
+    Evidence is references only (links, repo paths, file names); no file
+    uploads yet — controlled storage is a deliberate later decision.
+    """
+
+    __tablename__ = "submissions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    milestone_id: Mapped[int] = mapped_column(
+        ForeignKey("milestones.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    note: Mapped[str] = mapped_column(Text, nullable=False)
+    # JSON list of evidence reference strings.
+    evidence: Mapped[str] = mapped_column(
+        Text, nullable=False, default="[]", server_default="[]"
+    )
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    # Filled when the client reviews THIS submission; None = awaiting review.
+    review_decision: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    milestone: Mapped["Milestone"] = relationship(back_populates="submissions")
 
 
 class ContractEvent(Base):
