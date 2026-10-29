@@ -18,6 +18,7 @@ from app.schemas import (
     JobApplicationUpdate,
     RankedApplicant,
 )
+from app.services import levels as levels_service
 from app.services import matching as matching_service
 
 router = APIRouter(tags=["applications"])
@@ -62,6 +63,21 @@ def apply_for_job(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You cannot apply for your own job.",
         )
+
+    # Level gate (§14): a job may ask for a proven worker. Levels are
+    # computed from verified receipts, and the refusal says exactly why.
+    if job.min_worker_level > 0:
+        current_level = levels_service.worker_level(db, user_id)
+        if current_level < job.min_worker_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"This job requires worker level {job.min_worker_level} "
+                    f"and you are level {current_level}. Levels grow with "
+                    "verified completions; see GET /workers/me/level for "
+                    "what you are missing."
+                ),
+            )
 
     application = JobApplication(
         job_id=job_id,

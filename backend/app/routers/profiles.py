@@ -12,7 +12,12 @@ from app.core.security import (
 )
 from app.db_session import get_db
 from app.models import ProfileTag, User, WorkerProfile
-from app.schemas import WorkerProfileResponse, WorkerProfileUpsert
+from app.schemas import (
+    WorkerLevelResponse,
+    WorkerProfileResponse,
+    WorkerProfileUpsert,
+)
+from app.services import levels as levels_service
 
 router = APIRouter(tags=["profiles"])
 
@@ -40,6 +45,24 @@ def get_my_worker_profile(
     db: Session = Depends(get_db),
 ):
     return _profile_response(db, user_id)
+
+
+@router.get("/workers/me/level", response_model=WorkerLevelResponse)
+def get_my_worker_level(
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """The caller's worker level (0-3) with the exact inputs it was
+    computed from and what is missing for the next one (§14). Levels
+    are derived from signed receipts — never stored, never self-reported."""
+    receipts, clients = levels_service.level_inputs(db, user_id)
+    level = levels_service.compute_level(receipts, clients)
+    return WorkerLevelResponse(
+        level=level,
+        verified_completions=receipts,
+        distinct_clients=clients,
+        next_level=levels_service.next_level_gap(level, receipts, clients),
+    )
 
 
 @router.put("/profiles/me/worker", response_model=WorkerProfileResponse)

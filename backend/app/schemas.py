@@ -539,6 +539,30 @@ class WorkerProfileResponse(BaseModel):
     categories: list[str]
 
 
+class LevelRequirement(BaseModel):
+    verified_completions: int
+    distinct_clients: int
+
+
+class NextLevelGap(BaseModel):
+    """What the next level requires and what is still missing, in plain
+    language — a worker should never have to guess how levels work."""
+
+    level: int
+    required: LevelRequirement
+    missing: list[str]
+
+
+class WorkerLevelResponse(BaseModel):
+    """A worker's level with the recorded inputs it was computed from —
+    levels are explainable, never a black box (§14)."""
+
+    level: int
+    verified_completions: int
+    distinct_clients: int
+    next_level: NextLevelGap | None
+
+
 class RecommendationFactor(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
