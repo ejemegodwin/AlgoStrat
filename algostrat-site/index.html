@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AlgoStrat — Make your work portable</title>
+  <meta name="description" content="AlgoStrat helps people prove what they can do with clear tasks, reviewed evidence, and portable work receipts." />
+  <link rel="icon" type="image/svg+xml" href="/marketing-assets/mark.svg?v=mentor-20261030" />
+  <link rel="stylesheet" href="/marketing-assets/app.css?v=mentor-20261030" />
+  <style>
+    #main { display: flex; flex-direction: column; gap: var(--space-3xl); }
+    .hero { display: grid; grid-template-columns: 1fr; gap: var(--space-3xl); padding-block: var(--space-3xl) var(--space-xl); }
+    @media (min-width: 768px) { .hero { grid-template-columns: 1.2fr 1fr; align-items: start; } }
+    .proof-journey { display: flex; flex-direction: column; gap: var(--space-sm); margin-top: var(--space-md); }
+    @media (min-width: 768px) { .proof-journey { flex-direction: row; } }
+    .journey-step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+    .journey-step:not(:last-child)::after { content: ""; position: absolute; top: 12px; left: 50%; right: -50%; height: 2px; background: var(--line); }
+    @media (min-width: 768px) { .journey-step:not(:last-child)::after { left: 60%; right: -10%; } }
+    .journey-icon { width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--surface-elev); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-xs); }
+    .journey-label { font-size: var(--text-xs); color: var(--muted); font-weight: var(--fw-medium); }
+    .journey-label--active { color: var(--ink); }
+    .how-it-works { display: grid; grid-template-columns: 1fr; gap: var(--space-2xl); }
+    @media (min-width: 768px) { .how-it-works { grid-template-columns: repeat(4, 1fr); } }
+    .step-icon { width: 48px; height: 48px; border-radius: var(--radius-pill); background: var(--surface-elev); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-sm); }
+    .level-path-hero { display: flex; flex-direction: column; gap: var(--space-sm); margin-top: var(--space-md); }
+    @media (min-width: 768px) { .level-path-hero { flex-direction: row; } }
+    .level-step-hero { flex: 1; border: 2px solid var(--line); border-radius: var(--radius-sm) var(--radius-sm) 0 0; padding: var(--space-md) var(--space-sm); text-align: center; min-height: 140px; display: flex; flex-direction: column; align-items: center; }
+    .level-step-hero.active { border-color: var(--verified); }
+    .level-step-hero.locked { opacity: 0.5; }
+    .level-badge { width: 32px; height: 32px; border-radius: var(--radius-pill); background: var(--surface-elev); border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: var(--text-xs); font-weight: var(--fw-bold); margin-bottom: var(--space-2xs); }
+    .level-badge.active { background: var(--verified); color: #000; border-color: var(--verified); }
+    .notyet-example { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: var(--space-xl); max-width: 640px; margin: 0 auto; text-align: center; }
+    .notyet-bar { height: 8px; background: var(--line); border-radius: var(--radius-pill); overflow: hidden; margin: var(--space-sm) 0; }
+    .notyet-fill { width: 60%; height: 100%; background: var(--notyet); border-radius: var(--radius-pill); }
+    .receipt-demo { background: var(--surface-elev); border: 1px solid var(--line); border-radius: var(--radius-card); padding: var(--space-xl); max-width: 400px; position: relative; margin: 0 auto; box-shadow: var(--shadow-lg); }
+    @media (min-width: 768px) { .receipt-demo { margin: 0; } }
+    .receipt-demo::before { content: ""; position: absolute; top: 0; right: 0; width: 3px; height: 100%; background: linear-gradient(180deg, var(--verified) 0%, transparent 40%); opacity: 0.25; }
+    .receipt-header { border-bottom: 1px solid var(--line); padding-bottom: var(--space-sm); margin-bottom: var(--space-sm); }
+    .receipt-row { display: flex; justify-content: space-between; padding: 0.375rem 0; border-bottom: 1px solid var(--line); font-size: var(--text-sm); }
+    .receipt-row:last-child { border-bottom: none; }
+    [role="tablist"] { display: flex; border-bottom: 1px solid var(--line); margin-bottom: var(--space-md); }
+    [role="tab"] { padding: var(--space-sm) var(--space-md); border: none; background: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer; font-weight: var(--fw-semibold); }
+    [role="tab"][aria-selected="true"] { border-color: var(--verified); color: var(--ink); }
+    [role="tabpanel"] { display: none; padding: var(--space-md) 0; }
+    [role="tabpanel"]:not([hidden]) { display: block; }
+    .sticky-header { position: sticky; top: 0; background: color-mix(in srgb, var(--bg) 80%, var(--surface) 20%); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); z-index: 100; }
+    .mobile-menu { display: none; }
+    @media (max-width: 768px) { .mobile-menu { display: block; } .desktop-nav { display: none; } .mobile-menu-label { display: block; } }
+    @media (min-width: 769px) { .mobile-menu-label { display: none; } }
+    .waitlist-form { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: var(--space-xl); max-width: 560px; margin: 0 auto; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: var(--space-md); }
+    .footer-links a { color: var(--muted); text-decoration: none; font-size: var(--text-sm); }
+    .lang-select { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-input); color: var(--muted); padding: 0.375rem 0.75rem; font-family: inherit; font-size: var(--text-sm); min-width: 120px; opacity: 0.5; }
+    .mobile-menu-panel { display: none; position: absolute; top: 100%; right: var(--gutter); background: var(--surface-high); border: 1px solid var(--line-strong); border-radius: var(--radius-card); padding: var(--space-sm); min-width: 200px; box-shadow: var(--shadow-lg); }
+    .mobile-menu-panel a { color: var(--ink); text-decoration: none; padding: var(--space-2xs); }
+    .notyet-check { list-style: none; padding: 0; text-align: left; display: inline-block; }
+    .notyet-check .met { color: var(--verified); }
+    .notyet-check .miss { color: var(--notyet); }
+    .step-number { font-weight: 700; }
+    .mono-sm { font-family: var(--font-mono); font-size: var(--text-xs); word-break: break-all; }
+    details summary { cursor: pointer; font-weight: var(--fw-semibold); list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::after { content: "▼"; margin-left: 0.5rem; font-size: 0.75rem; color: var(--muted); }
+    details[open] summary::after { transform: rotate(180deg); }
+  </style>
+</head>
+<body class="no-js">
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <!-- Section 1: Header -->
+  <header class="sticky-header container" id="header">
+    <div class="flex-center" style="gap: var(--space-md); justify-content: space-between;">
+      <div class="flex-center" style="gap: var(--space-sm);">
+        <img src="/marketing-assets/mark.svg?v=mentor-20261030" alt="" width="32" height="32" />
+        <span class="font-bold h3" style="margin: 0;">AlgoStrat</span>
+      </div>
+      <nav class="desktop-nav">
+        <div class="flex-center" style="gap: var(--space-md);">
+          <a href="#how-it-works" style="color: var(--muted); text-decoration: none;">How it works</a>
+          <a href="#for-workers" style="color: var(--muted); text-decoration: none;">For workers</a>
+          <a href="#faq" style="color: var(--muted); text-decoration: none;">FAQ</a>
+        </div>
+      </nav>
+      <div class="flex-center" style="gap: var(--space-sm);">
+        <span class="market-pill"><span class="market-dot"></span>Early access · Global</span>
+        <button type="button" class="btn btn-primary" id="waitlistBtn">Join the waitlist</button>
+        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">🌓</button>
+        <button type="button" class="theme-toggle mobile-menu-label" id="mobileMenuBtn" aria-label="Menu" aria-expanded="false" style="display: none;">☰</button>
+        <div class="mobile-menu-panel" id="mobileMenuPanel">
+          <nav style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <a href="#how-it-works">How it works</a>
+            <a href="#for-workers">For workers</a>
+            <a href="#faq">FAQ</a>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- Section 2: Hero -->
+    <section class="hero container" id="hero">
+      <div class="hero-focal">
+        <div class="eyebrow">A new standard for portable work proof</div>
+        <h1 style="font-size: var(--hero-headline); line-height: var(--lh-tight);">Make your work<br /><span class="hero-accent">speak for itself.</span></h1>
+        <p style="font-size: var(--text-lg); color: var(--muted);">
+          Complete real tasks. Build a record you can take anywhere. AlgoStrat turns capability into evidence that travels across borders.
+        </p>
+        <div class="flex-center" style="gap: var(--space-sm); margin-top: var(--space-lg);">
+          <button type="button" class="btn btn-primary" id="heroWaitlistBtn">Join the waitlist</button>
+          <button type="button" class="btn btn-ghost" id="heroReceiptBtn">See a sample receipt</button>
+        </div>
+
+        <div class="hero-proof-note"><span class="proof-check">✓</span> Designed for independent workers and teams hiring across borders</div>
+
+        <!-- Proof journey -->
+        <div class="proof-journey" style="margin-top: var(--space-3xl);">
+          <div class="journey-step">
+            <div class="journey-icon journey-icon--active">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v14" stroke-linecap="round"/></svg>
+            </div>
+            <span class="journey-label journey-label--active">Task</span>
+          </div>
+          <div class="journey-step">
+            <div class="journey-icon journey-icon--active">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" stroke-width="2"/><path d="M12 1v6m0 10v6" stroke-linecap="round"/><path d="M4.22 4.22l4.24 4.24m7.32 7.32 4.24 4.24" stroke-linecap="round"/></svg>
+            </div>
+            <span class="journey-label journey-label--active">Evidence</span>
+          </div>
+          <div class="journey-step">
+            <div class="journey-icon journey-icon--active">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 10h8M8 14h8M8 6h8" stroke-linecap="round"/></svg>
+            </div>
+            <span class="journey-label journey-label--active">Receipt</span>
+          </div>
+          <div class="journey-step">
+            <div class="journey-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14m7-7-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="journey-label">Opportunity</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="receipt-demo" id="sampleReceipt">
+          <div class="receipt-header">
+            <div class="flex-center" style="justify-content: space-between; gap: var(--space-sm);">
+              <div class="font-bold">Verified Receipt</div>
+              <span class="badge badge-review">Sample</span>
+            </div>
+            <div style="font-size: var(--text-xs); color: var(--muted); margin-top: 0.25rem;">#A7F3-B9E2</div>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Task</span>
+            <span class="value">Build a responsive nav bar</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Criteria</span>
+            <span class="value">5/5 met</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Date</span>
+            <span class="value">Oct 28, 2026</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Hash</span>
+            <span class="hash-display mono-sm" id="receiptHash">a7f3b9e2c4d1e8f3a7b9c1d2e3f4a5b6...</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Status</span>
+            <span class="badge badge-verified">Verified</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: How it works -->
+    <section class="container" id="how-it-works">
+      <div class="flex-center" style="justify-content: space-between; margin-bottom: var(--space-2xl);">
+        <h2 style="margin: 0;">How it works</h2>
+        <a href="#how-it-works" style="color: var(--muted); text-decoration: none; font-size: var(--text-sm);">Learn more</a>
+      </div>
+      <div class="how-it-works">
+        <div class="text-center">
+          <div class="step-icon flex-center">
+            <span class="step-number">1</span>
+          </div>
+          <h3 class="h4">Task</h3>
+          <p class="ink-muted" style="font-size: var(--text-sm);">Small, real tasks defined by written criteria.</p>
+        </div>
+        <div class="text-center">
+          <div class="step-icon flex-center">
+            <span class="step-number">2</span>
+          </div>
+          <h3 class="h4">Evidence</h3>
+          <p class="ink-muted" style="font-size: var(--text-sm);">Submit your work against each criterion.</p>
+        </div>
+        <div class="text-center">
+          <div class="step-icon flex-center">
+            <span class="step-number">3</span>
+          </div>
+          <h3 class="h4">Receipt</h3>
+          <p class="ink-muted" style="font-size: var(--text-sm);">Reviewed work earns a verifiable receipt.</p>
+        </div>
+        <div class="text-center">
+          <div class="step-icon flex-center">
+            <span class="step-number">4</span>
+          </div>
+          <h3 class="h4">Unlock</h3>
+          <p class="ink-muted" style="font-size: var(--text-sm);">Receipts qualify you for larger paid work.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Try the receipt -->
+    <section class="container" id="receipt-section">
+      <div class="text-center" style="margin-bottom: var(--space-2xl);">
+        <h2>Try the receipt</h2>
+        <p class="ink-muted">Verify a receipt's integrity in your browser.</p>
+      </div>
+      <div class="flex-center" style="justify-content: center;">
+        <div class="receipt-demo">
+          <div class="receipt-header">
+            <div class="flex-center" style="justify-content: space-between; gap: var(--space-sm);">
+              <div class="font-bold">Verified Receipt</div>
+              <span class="badge badge-review">Sample</span>
+            </div>
+            <div style="font-size: var(--text-xs); color: var(--muted);" id="receiptId">#A7F3-B9E2</div>
+          </div>
+          <div class="receipt-row"><span class="label">Task</span><span class="value" id="receiptTask">Build a responsive nav bar</span></div>
+          <div class="receipt-row"><span class="label">Criteria</span><span class="value">5/5 met</span></div>
+          <div class="receipt-row"><span class="label">Date</span><span class="value" id="receiptDate">Oct 28, 2026</span></div>
+          <div class="receipt-row"><span class="label">Hash</span><span class="hash-display mono-sm" id="receiptDisplayHash">a7f3b9e2c4d1e8f3a7b9c1d2e3f4a5b6...</span></div>
+          <div class="receipt-row"><span class="label">Status</span><span class="badge badge-verified" id="receiptStatusBadge">Verified</span></div>
+          <div class="flex-center" style="gap: var(--space-sm); margin-top: var(--space-md);">
+            <button type="button" class="btn btn-primary" id="verifyBtn">Verify</button>
+            <button type="button" class="btn btn-ghost" id="editBtn">Edit a detail</button>
+          </div>
+          <p class="ink-muted" style="font-size: var(--text-xs); margin-top: var(--space-sm);">
+            Demo of the idea. Real receipts are signed and verified by AlgoStrat's server.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: For workers / For businesses -->
+    <section class="container" id="for-workers">
+      <div role="tablist" style="justify-content: center;">
+        <button type="button" role="tab" id="tab-workers" aria-selected="true" aria-controls="panel-workers" class="font-bold">For workers</button>
+        <button type="button" role="tab" id="tab-businesses" aria-selected="false" aria-controls="panel-businesses">For businesses</button>
+      </div>
+      <div id="panel-workers" role="tabpanel" style="text-align: center; max-width: 640px; margin: 0 auto;">
+        <h3 class="h4">Build a record of work you can trust</h3>
+        <p class="ink-muted" style="font-size: var(--text-lg);">
+          Start with small, clearly defined tasks. Each reviewed submission earns
+          a verifiable receipt. Accumulate receipts to demonstrate your abilities
+          and qualify for larger paid opportunities.
+        </p>
+        <div class="flex-center" style="gap: var(--space-md); margin-top: var(--space-lg);">
+          <div class="text-center"><span class="font-bold h4">Small tasks</span><p class="ink-muted" style="font-size: var(--text-sm);">Start with achievable scope</p></div>
+          <div class="text-center"><span class="font-bold h4">Reviewed work</span><p class="ink-muted" style="font-size: var(--text-sm);">Criteria judged by reviewers</p></div>
+          <div class="text-center"><span class="font-bold h4">Clear evidence</span><p class="ink-muted" style="font-size: var(--text-sm);">Verifiable records over claims</p></div>
+        </div>
+      </div>
+      <div id="panel-businesses" role="tabpanel" hidden>
+        <div class="eyebrow">For teams hiring across borders</div>
+        <h3 class="h4">Hire based on real work, not promises</h3>
+        <p class="ink-muted" style="font-size: var(--text-lg);">
+          Define success before work starts with clear criteria. Review submissions
+          against agreed requirements. Keep a verifiable record of every completed task
+          instead of relying on unsupported claims or resumes.
+        </p>
+        <div class="audience-benefits">
+          <div class="card"><span class="font-bold">Set the standard</span><p class="ink-muted" style="font-size: var(--text-sm);">Write acceptance criteria before work begins.</p></div>
+          <div class="card"><span class="font-bold">Review the evidence</span><p class="ink-muted" style="font-size: var(--text-sm);">Compare submissions against the same requirements.</p></div>
+          <div class="card"><span class="font-bold">Keep the record</span><p class="ink-muted" style="font-size: var(--text-sm);">Carry a clear history of what was completed.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: Levels -->
+    <section class="container" id="levels">
+      <div class="text-center" style="margin-bottom: var(--space-2xl);">
+        <h2>How levels will work <span class="draft-label">Draft</span></h2>
+        <p class="ink-muted">A working model for how verified work could build trust over time.</p>
+      </div>
+      <div class="level-path-hero">
+        <div class="level-step-hero active">
+          <div class="level-badge active">L0</div>
+          <div class="font-bold text-sm">Getting started</div>
+          <p class="ink-muted" style="font-size: var(--text-xs);">Account created</p>
+        </div>
+        <div class="level-step-hero active">
+          <div class="level-badge active">L1</div>
+          <div class="font-bold text-sm" style="color: var(--verified);">First verified work</div>
+          <p class="ink-muted" style="font-size: var(--text-xs);">1 verified task · draft</p>
+        </div>
+        <div class="level-step-hero locked">
+          <div class="level-badge">L2</div>
+          <div class="font-bold text-sm">Consistent work</div>
+          <p class="ink-muted" style="font-size: var(--text-xs);">3 verified tasks · draft</p>
+        </div>
+        <div class="level-step-hero locked">
+          <div class="level-badge">L3</div>
+          <div class="font-bold text-sm">Broad capability</div>
+          <p class="ink-muted" style="font-size: var(--text-xs);">5 verified tasks · draft</p>
+        </div>
+      </div>
+      <p class="ink-muted" style="font-size: var(--text-xs); text-align: center; margin-top: var(--space-sm);">
+        Thresholds are illustrative and will be finalized with early users.
+      </p>
+    </section>
+
+    <!-- Section 7: When you miss a check -->
+    <section class="container" id="notyet">
+      <div class="text-center" style="margin-bottom: var(--space-2xl);">
+        <h2>When you miss a check</h2>
+        <p class="ink-muted">Progress means knowing what's left.</p>
+      </div>
+      <div class="notyet-example">
+        <div style="display: flex; align-items: center; justify-content: center; gap: var(--space-sm); margin-bottom: var(--space-sm);">
+          <span class="badge badge-notyet">Sample</span>
+          <span class="badge badge-notyet">Not yet</span>
+        </div>
+        <h3 class="h4" style="color: var(--notyet);">Not yet. You're making progress.</h3>
+        <p>You met 3 of 5 criteria. One required item still needs attention.</p>
+        <ul class="notyet-check">
+          <li class="met">✓ Semantic HTML structure</li>
+          <li class="met">✓ Responsive at 360px</li>
+          <li class="miss">✗ Keyboard navigation</li>
+          <li class="met">✓ No external dependencies</li>
+        </ul>
+        <div class="notyet-bar"><div class="notyet-fill"></div></div>
+        <p class="ink-muted" style="font-size: var(--text-sm); margin-top: var(--space-sm);">
+          Next step: review the missing requirement and update your submission.
+        </p>
+        <p class="ink-muted" style="font-size: var(--text-sm);">
+          Try again whenever you're ready, or start with an easier task.
+        </p>
+      </div>
+    </section>
+
+    <!-- Section 8: Principles -->
+    <section class="container" id="principles">
+      <h2>What AlgoStrat will not do.</h2>
+      <div style="display: grid; grid-template-columns: 1fr; gap: var(--space-md);">
+        <div class="card">
+          <h3 class="h4">No guaranteed income</h3>
+          <p class="ink-muted">Completing tasks earns receipts, not promises. We do not guarantee paid work.</p>
+        </div>
+        <div class="card">
+          <h3 class="h4">No fake reviews</h3>
+          <p class="ink-muted">Every receipt is checked against written criteria by reviewers — not by an algorithm alone.</p>
+        </div>
+        <div class="card">
+          <h3 class="h4">No hidden fees</h3>
+          <p class="ink-muted">Joining is free. Any platform fee on paid work is shown before you accept a contract.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 9: FAQ -->
+    <section class="container" id="faq">
+      <h2>Frequently asked questions</h2>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <details>
+          <summary>What is AlgoStrat?</summary>
+          <p class="ink-muted" style="margin-top: 0.75rem;">
+            AlgoStrat is where your work history is provable. You complete small, real
+            tasks against written criteria. Each reviewed task issues a verifiable receipt
+            that proves the work was done.
+          </p>
+        </details>
+        <details>
+          <summary>How do work receipts work?</summary>
+          <p class="ink-muted" style="margin-top: 0.75rem;">
+            Each task has explicit criteria. After you submit, a reviewer checks your
+            work against those criteria. If you pass, you receive a receipt with a hash
+            of the canonical task data. You can verify that hash in your browser.
+          </p>
+        </details>
+        <details>
+          <summary>Can beginners participate?</summary>
+          <p class="ink-muted" style="margin-top: 0.75rem;">
+            Yes. Tasks are scoped to be achievable by someone starting out. You begin at
+            Level 0 and progress as you earn verified receipts.
+          </p>
+        </details>
+        <details>
+          <summary>Do receipts guarantee a paid job?</summary>
+          <p class="ink-muted" style="margin-top: 0.75rem;">
+            No. Receipts demonstrate capability but do not guarantee employment or income.
+            They are one form of evidence among many that you can share.
+          </p>
+        </details>
+        <details>
+          <summary>How do businesses define successful work?</summary>
+          <p class="ink-muted" style="margin-top: 0.75rem;">
+            Businesses write the task and its criteria before work begins. Reviewers check
+            submissions against that explicit list — not against a resume or portfolio.
+          </p>
+        </details>
+        <details>
+          <summary>What happens when work does not meet the criteria?</summary>
+          <p class="ink-muted" style="margin-top: 0.75rem;">
+            The review identifies which criteria were met and which were not. You receive
+            specific feedback and can resubmit. No work is permanently failed.
+          </p>
+        </details>
+        <details>
+          <summary>Are the level rules final?</summary>
+          <p class="ink-muted" style="margin-top: 0.75rem;">
+            No. The current level thresholds are an illustrative draft. Final rules will
+            be published before they take effect.
+          </p>
+        </details>
+        <details>
+          <summary>Is the platform available now?</summary>
+          <p class="ink-muted" style="margin-top: 0.75rem;">
+            AlgoStrat is in early development. Join the waitlist to get notified when
+            tasks and reviews begin.
+          </p>
+        </details>
+      </div>
+    </section>
+
+    <!-- Section 10: Waitlist -->
+    <section class="container" id="waitlist">
+      <div class="text-center" style="margin-bottom: var(--space-xl);">
+        <div class="eyebrow">Be part of the first cohort</div>
+        <h2>Help shape the global pilot.</h2>
+        <p class="ink-muted">Tell us where you work and what you need to prove. We’ll use early access feedback to prioritize the first markets.</p>
+      </div>
+      <form class="waitlist-form" id="waitlistForm" data-api-base="/waitlist" novalidate style="display: flex; flex-direction: column; gap: var(--space-md);">
+        <div class="field">
+          <label for="waitlistEmail">Email address</label>
+          <input type="email" id="waitlistEmail" name="email" placeholder="you@example.com" autocomplete="email" required />
+          <span class="error-message" id="emailError" role="alert" style="display: none;"></span>
+        </div>
+        <fieldset style="border: none; padding: 0; margin: 0;">
+          <legend class="font-medium text-sm" style="margin-bottom: var(--space-2xs);">I am joining as</legend>
+          <label style="display: inline-flex; gap: 0.5rem; margin-right: var(--space-md);"><input type="radio" name="audience" value="worker" /> A worker</label>
+          <label style="display: inline-flex; gap: 0.5rem;"><input type="radio" name="audience" value="business" /> A business</label>
+          <div class="error-message" id="audienceError" role="alert" style="display: none;"></div>
+        </fieldset>
+        <div class="field">
+          <label for="waitlistRegion">Where are you based?</label>
+          <select id="waitlistRegion" name="region">
+            <option value="" selected>Select a region</option>
+            <option value="africa">Africa</option>
+            <option value="europe">Europe</option>
+            <option value="middle-east">Middle East</option>
+            <option value="north-america">North America</option>
+            <option value="latin-america">Latin America</option>
+            <option value="asia-pacific">Asia-Pacific</option>
+          </select>
+          <span class="helper-text">Your answer helps us choose where to launch first.</span>
+        </div>
+        <div>
+          <label style="display: flex; gap: 0.5rem; align-items: flex-start; font-size: var(--text-sm);">
+            <input type="checkbox" name="consent" style="margin-top: 0.25rem;" />
+            <span>I consent to being contacted about AlgoStrat. You can unsubscribe at any time.</span>
+          </label>
+          <div class="error-message" id="consentError" role="alert" style="display: none;"></div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          <span id="submitText">Join the waitlist</span>
+          <span class="spinner" id="submitSpinner" style="display: none; margin-left: 0.5rem;"></span>
+        </button>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- Section 11: Footer -->
+  <footer class="container" style="border-top: 1px solid var(--line); margin-top: var(--space-3xl);">
+    <div class="flex-center" style="justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
+      <div class="flex-center" style="gap: var(--space-sm);">
+        <img src="/marketing-assets/mark.svg?v=mentor-20261030" alt="" width="24" height="24" />
+        <span class="font-bold">AlgoStrat</span>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="#how-it-works">How it works</a>
+        <a href="#principles">Principles</a>
+        <a href="#faq">FAQ</a>
+        <a href="#waitlist">Waitlist</a>
+      </nav>
+      <button type="button" class="theme-toggle" id="themeToggleFooter" aria-label="Toggle theme">🌓</button>
+    </div>
+    <p class="muted text-xs" style="margin-top: var(--space-md);">&copy; 2026 AlgoStrat. Early development — nothing here is a guarantee of work or income.</p>
+  </footer>
+
+  <script src="/marketing-assets/app.js?v=mentor-20261030" defer></script>
+</body>
+</html>

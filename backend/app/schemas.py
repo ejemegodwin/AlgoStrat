@@ -77,6 +77,28 @@ class UserCreate(BaseModel):
         return _normalize_email(value)
 
 
+class WaitlistCreate(BaseModel):
+    email: EmailStr
+    audience: str = Field(pattern="^(worker|business)$")
+    region: str | None = Field(
+        default=None,
+        pattern="^(africa|europe|middle-east|north-america|latin-america|asia-pacific)$",
+    )
+    consent: bool = Field(default=False)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
+
+    @field_validator("consent")
+    @classmethod
+    def require_consent(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("Consent is required to join the waitlist.")
+        return value
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

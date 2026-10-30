@@ -22,6 +22,35 @@ class Base(DeclarativeBase):
     pass
 
 
+class WaitlistLead(Base):
+    """A consented early-access lead from the public market-test page."""
+
+    __tablename__ = "waitlist_leads"
+
+    __table_args__ = (
+        CheckConstraint(
+            "audience IN ('worker', 'business')",
+            name="ck_waitlist_leads_audience",
+        ),
+        CheckConstraint(
+            "region IS NULL OR region IN ('africa', 'europe', 'middle-east', "
+            "'north-america', 'latin-america', 'asia-pacific')",
+            name="ck_waitlist_leads_region",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    audience: Mapped[str] = mapped_column(String(20), nullable=False)
+    region: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    consent: Mapped[bool] = mapped_column(nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class User(Base):
     __tablename__ = "users"
 

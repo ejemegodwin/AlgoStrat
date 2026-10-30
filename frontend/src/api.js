@@ -2,7 +2,11 @@
 // token header, and FastAPI's error shape ({ "detail": "..." }).
 // Everything else calls api() and never touches fetch directly.
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const BASE_URL =
+  import.meta.env.VITE_API_URL ??
+  (window.location.hostname === "localhost" && window.location.port === "5173"
+    ? "http://localhost:8000"
+    : window.location.origin);
 
 export class ApiError extends Error {
   constructor(status, detail) {

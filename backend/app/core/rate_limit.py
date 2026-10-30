@@ -72,6 +72,10 @@ verify_rate_limiter = InMemoryRateLimiter(
     max_attempts=30,
     window_seconds=60,
 )
+waitlist_rate_limiter = InMemoryRateLimiter(
+    max_attempts=10,
+    window_seconds=60,
+)
 
 
 def _client_key(request: Request) -> str:

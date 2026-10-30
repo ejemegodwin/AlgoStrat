@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AlgoStrat — Component Style Guide</title>
+  <link rel="stylesheet" href="assets/app.css?v=2" />
+  <style>
+    .section { padding-block: var(--space-xl); }
+    .section h2 {
+      border-bottom: 1px solid var(--line);
+      padding-block: var(--space-sm) 0;
+      margin-bottom: var(--space-lg);
+    }
+    .example {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      padding: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+    .example h3 { margin: 0 0 var(--space-sm); }
+    .demo-row { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
+    .palette-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-md); }
+    .swatch { border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--line); }
+    .swatch-inner { padding: var(--space-sm); text-align: center; font-size: var(--text-xs); }
+    .type-scale li { margin-bottom: 0.25rem; }
+    code { background: var(--line); padding: 0.125rem 0.375rem; border-radius: var(--radius-sm); font-size: 0.85em; }
+    .field-2col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
+    @media (max-width: 768px) { .field-2col { grid-template-columns: 1fr; } }
+    .receipt {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      padding: var(--space-lg);
+      max-width: 420px;
+      position: relative;
+    }
+    .receipt::before {
+      content: "";
+      position: absolute;
+      top: 0; right: 0;
+      width: 3px;
+      height: 100%;
+      background: linear-gradient(180deg, var(--verified) 0%, transparent 30%);
+      opacity: 0.3;
+    }
+    .receipt-header { border-bottom: 1px solid var(--line); padding-bottom: var(--space-sm); margin-bottom: var(--space-sm); }
+    .receipt-item { display: flex; justify-content: space-between; padding: 0.375rem 0; border-bottom: 1px solid var(--line); }
+    .receipt-item:last-child { border-bottom: none; }
+    .level-path { display: flex; align-items: flex-end; gap: 0.5rem; height: 200px; padding: var(--space-md); }
+    .level-step {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      border: 2px solid var(--line); border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      padding: var(--space-sm) var(--space-2xs);
+      background: var(--surface);
+      min-height: 120px;
+    }
+    .level-step.active { border-color: var(--verified); background: var(--verified-bg); }
+    .level-step.locked { opacity: 0.4; }
+    .level-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); margin-bottom: var(--space-2xs); }
+    .level-dot.active { background: var(--verified); border-color: var(--verified); }
+    .toast {
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-input);
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      min-height: 44px;
+    }
+    .toast-success { background: var(--verified-bg); border-color: color-mix(in srgb, var(--verified) 40%, transparent); color: var(--verified); }
+    .toast-info { background: var(--hover-overlay); border-color: var(--line); }
+    .toast-warning { background: var(--notyet-bg); border-color: color-mix(in srgb, var(--notyet) 40%, transparent); color: var(--notyet); }
+    .toast-error { background: color-mix(in srgb, var(--danger) 12%, transparent); border-color: color-mix(in srgb, var(--danger) 40%, transparent); color: var(--danger); }
+  </style>
+</head>
+<body class="no-js">
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <header class="container" style="padding-block: var(--space-md); border-bottom: 1px solid var(--line); margin-bottom: var(--space-xl);">
+    <div class="flex-center" style="gap: var(--space-sm);">
+      <img src="assets/mark.svg" alt="" width="40" height="40" />
+      <h1 class="h3" style="margin: 0;">AlgoStrat Components</h1>
+      <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">🌓</button>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+
+    <!-- Color Palette -->
+    <section class="section" id="colors">
+      <h2>Color palette</h2>
+      <div class="palette-grid">
+        <div class="swatch">
+          <div class="swatch-inner" style="background: var(--bg); color: var(--ink);">
+            <div class="font-bold">Dark (default)</div>
+            <div style="margin-top: 0.25rem;">bg / ink</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-inner" style="background: var(--surface); color: var(--ink);">
+            <div class="font-bold">Surface</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-inner" style="background: var(--surface-elev); color: var(--ink);">
+            <div class="font-bold">Surface elev</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-inner" style="background: var(--verified); color: #000;">
+            <div class="font-bold">Verified</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-inner" style="background: var(--notyet); color: #000;">
+            <div class="font-bold">Not yet</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-inner" style="background: var(--review); color: #000;">
+            <div class="font-bold">Under review</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-inner" style="background: var(--danger); color: #fff;">
+            <div class="font-bold">Danger</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-inner" style="background: var(--line); color: var(--ink);">
+            <div class="font-bold">Line</div>
+          </div>
+        </div>
+      </div>
+      <p class="meta" style="margin-top: var(--space-sm); color: var(--muted);">Switch to light theme using the toggle above to preview light theme colors.</p>
+    </section>
+
+    <!-- Typography -->
+    <section class="section" id="typography">
+      <h2>Typography</h2>
+      <div class="example">
+        <h3>Font stack</h3>
+        <p><code>Manrope Subset</code> with system-font fallback. Monospace for hashes.</p>
+      </div>
+      <div class="example">
+        <h3>Scale</h3>
+        <ul class="type-scale">
+          <li><span class="text-xs">--text-xs: 12px</span></li>
+          <li><span class="text-sm">--text-sm: 14px</span></li>
+          <li><span class="text-base">--text-base: 16px (default)</span></li>
+          <li><span class="text-lg">--text-lg: 18px</span></li>
+          <li><span class="text-xl">--text-xl: 20px</span></li>
+          <li><span class="text-2xl">--text-2xl: 24px</span></li>
+          <li><span class="text-3xl">--text-3xl: 32px</span></li>
+          <li><span class="text-4xl">--text-4xl: 40px</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Buttons -->
+    <section class="section" id="buttons">
+      <h2>Buttons</h2>
+      <div class="example">
+        <h3>Primary pill</h3>
+        <div class="demo-row">
+          <button type="button" class="btn btn-primary">Join the waitlist</button>
+          <button type="button" class="btn btn-primary" disabled>Disabled</button>
+        </div>
+      </div>
+      <div class="example">
+        <h3>Ghost button</h3>
+        <div class="demo-row">
+          <button type="button" class="btn btn-ghost">Cancel</button>
+          <button type="button" class="btn btn-ghost" disabled>Disabled</button>
+        </div>
+      </div>
+      <div class="example">
+        <h3>Loading button</h3>
+        <div class="demo-row">
+          <button type="button" class="btn btn-primary" disabled>
+            <span class="spinner" aria-label="Loading"></span>
+            <span style="margin-left: 0.5rem;">Submitting…</span>
+          </button>
+        </div>
+      </div>
+      <div class="example">
+        <h3>Focus states</h3>
+        <p>Tab to each button to see the focus ring. All buttons are 44px minimum height.</p>
+      </div>
+    </section>
+
+    <!-- Form Controls -->
+    <section class="section" id="form-controls">
+      <h2>Form controls</h2>
+      <div class="example">
+        <form class="field">
+          <label for="demo-text">Text input</label>
+          <input id="demo-text" type="text" placeholder="Default" />
+          <span class="helper-text">Helper text goes here.</span>
+        </form>
+      </div>
+      <div class="example">
+        <form class="field">
+          <label for="demo-email">Email input <span style="color: var(--danger);">*</span></label>
+          <input id="demo-email" type="email" placeholder="you@example.com" required />
+        </form>
+      </div>
+      <div class="example">
+        <form class="field">
+          <label for="demo-select">Select</label>
+          <select id="demo-select">
+            <option value="">Choose an option</option>
+            <option value="worker">I want to do tasks</option>
+            <option value="business">I want tasks done</option>
+          </select>
+        </form>
+      </div>
+      <div class="example">
+        <form class="field">
+          <label for="demo-textarea">Textarea</label>
+          <textarea id="demo-textarea" placeholder="Your message..."></textarea>
+        </form>
+      </div>
+      <div class="example">
+        <form class="field">
+          <label for="demo-error">With error</label>
+          <input id="demo-error" type="text" value="Invalid value" aria-describedby="demo-error-msg" />
+          <span id="demo-error-msg" class="error-message">This field is required.</span>
+        </form>
+      </div>
+      <div class="example field-2col">
+        <form class="field">
+          <label for="demo-disabled">Disabled</label>
+          <input id="demo-disabled" type="text" value="Cannot edit" disabled />
+        </form>
+        <form class="field">
+          <label for="demo-required">Required</label>
+          <input id="demo-required" type="text" placeholder="Required field" required />
+        </form>
+      </div>
+    </section>
+
+    <!-- Status Badges -->
+    <section class="section" id="badges">
+      <h2>Status badges</h2>
+      <p class="meta" style="color: var(--muted); margin-bottom: var(--space-sm);">Each badge has meaning beyond color — text labels and context distinguish them.</p>
+      <div class="demo-row">
+        <span class="badge badge-verified">Verified</span>
+        <span class="badge badge-notyet">Not yet</span>
+        <span class="badge badge-review">In review</span>
+        <span class="badge badge-selfreported">Self-reported</span>
+      </div>
+    </section>
+
+    <!-- Task Card -->
+    <section class="section" id="task-card">
+      <h2>Task card</h2>
+      <div class="card" style="max-width: 360px;">
+        <div class="flex-center" style="justify-content: space-between; margin-bottom: var(--space-sm);">
+          <span class="badge badge-selfreported">Sample</span>
+          <span class="badge">Frontend</span>
+        </div>
+        <h3 class="h4">Build a responsive navigation bar</h3>
+        <p class="ink-muted" style="font-size: var(--text-sm);">Create a navigation component using HTML and CSS with a mobile toggle.</p>
+        <div style="margin-top: var(--space-sm);">
+          <div class="meta" style="font-size: var(--text-xs); margin-bottom: 0.25rem;">Criteria checklist</div>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            <li style="padding: 0.25rem 0; border-bottom: 1px solid var(--line);">✓ Uses semantic HTML</li>
+            <li style="padding: 0.25rem 0; border-bottom: 1px solid var(--line);">✓ Mobile-first at 360px</li>
+            <li style="padding: 0.25rem 0; border-bottom: 1px solid var(--line);">✗ Keyboard navigation</li>
+            <li style="padding: 0.25rem 0;">✓ No external dependencies</li>
+          </ul>
+        </div>
+        <div style="margin-top: var(--space-sm); font-size: var(--text-xs); color: var(--muted);">Progress: 3 of 5 met</div>
+      </div>
+    </section>
+
+    <!-- Receipt -->
+    <section class="section" id="receipt">
+      <h2>Receipt ticket</h2>
+      <div class="receipt">
+        <div class="receipt-header">
+          <div class="font-bold">Verified Receipt</div>
+          <div class="text-xs" style="color: var(--muted);">Receipt #A7F3-B9E2</div>
+        </div>
+        <div class="receipt-item">
+          <span>Task</span>
+          <span>Build a responsive nav bar</span>
+        </div>
+        <div class="receipt-item">
+          <span>Criteria</span>
+          <span>5/5 met</span>
+        </div>
+        <div class="receipt-item">
+          <span>Date</span>
+          <span>Oct 28, 2026</span>
+        </div>
+        <div class="receipt-item">
+          <span>Hash</span>
+          <span class="mono text-xs">a7f3b9e2…c4d1</span>
+        </div>
+        <div class="receipt-item">
+          <span>Status</span>
+          <span class="badge badge-verified">Verified</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Level Meter -->
+    <section class="section" id="level-meter">
+      <h2>Level meter</h2>
+      <div class="level-path">
+        <div class="level-step locked">
+          <div class="level-dot"></div>
+          <div class="font-bold text-sm">L0</div>
+          <div class="text-xs" style="color: var(--muted);">Getting started</div>
+        </div>
+        <div class="level-step active">
+          <div class="level-dot active"></div>
+          <div class="font-bold text-sm" style="color: var(--verified);">L1</div>
+          <div class="text-xs">First verified task</div>
+          <div class="text-xs" style="color: var(--muted); margin-top: 0.25rem;">Illustrative: 1 verified task</div>
+        </div>
+        <div class="level-step locked">
+          <div class="level-dot"></div>
+          <div class="font-bold text-sm">L2</div>
+          <div class="text-xs" style="color: var(--muted);">Consistent work</div>
+          <div class="text-xs" style="color: var(--muted); margin-top: 0.25rem;">Illustrative: 3 verified tasks</div>
+        </div>
+        <div class="level-step locked">
+          <div class="level-dot"></div>
+          <div class="font-bold text-sm">L3</div>
+          <div class="text-xs" style="color: var(--muted);">Broad capability</div>
+          <div class="text-xs" style="color: var(--muted); margin-top: 0.25rem;">Illustrative: 5 verified tasks</div>
+        </div>
+      </div>
+      <p class="meta" style="color: var(--muted); margin-top: var(--space-sm);">Level rules shown here are illustrative placeholders, not final product policies.</p>
+    </section>
+
+    <!-- Toast -->
+    <section class="section" id="toasts">
+      <h2>Toasts</h2>
+      <div class="example">
+        <div class="toast toast-success">
+          <span>✓</span>
+          <span>Successfully saved.</span>
+        </div>
+      </div>
+      <div class="example">
+        <div class="toast toast-info">
+          <span>ⓘ</span>
+          <span>Your theme preference was saved.</span>
+        </div>
+      </div>
+      <div class="example">
+        <div class="toast toast-warning">
+          <span>⚠</span>
+          <span>Your session is about to expire.</span>
+        </div>
+      </div>
+      <div class="example">
+        <div class="toast toast-error">
+          <span>✕</span>
+          <span>Something went wrong. Please try again.</span>
+        </div>
+      </div>
+      <p class="meta" style="color: var(--muted);">Toasts include role="alert" and aria-live in production usage.</p>
+    </section>
+
+    <!-- Empty State -->
+    <section class="section" id="empty-state">
+      <h2>Empty state</h2>
+      <div class="card" style="text-align: center; padding: var(--space-xl);">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto var(--space-sm);">
+          <circle cx="24" cy="24" r="20" stroke="var(--line)" stroke-width="2" fill="none"/>
+          <path d="M16 24l6 6 6-6" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h3 class="h4">No verified tasks yet</h3>
+        <p class="ink-muted" style="font-size: var(--text-sm);">Complete a task and earn your first receipt.</p>
+        <button type="button" class="btn btn-primary" style="margin-top: var(--space-sm);">Find tasks</button>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="section" id="table">
+      <h2>Table</h2>
+      <div class="example">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--line);">Receipt</th>
+              <th style="text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--line);">Task</th>
+              <th style="text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--line);">Date</th>
+              <th style="text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--line);">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono text-xs" style="padding: 0.5rem; border-bottom: 1px solid var(--line);">a7f3b9e2</td>
+              <td style="padding: 0.5rem; border-bottom: 1px solid var(--line);">Nav bar component</td>
+              <td style="padding: 0.5rem; border-bottom: 1px solid var(--line);">Oct 28</td>
+              <td style="padding: 0.5rem; border-bottom: 1px solid var(--line);"><span class="badge badge-verified">Verified</span></td>
+            </tr>
+            <tr>
+              <td class="mono text-xs" style="padding: 0.5rem; border-bottom: 1px solid var(--line);">c4d1e8f3</td>
+              <td style="padding: 0.5rem; border-bottom: 1px solid var(--line);">Form validation</td>
+              <td style="padding: 0.5rem; border-bottom: 1px solid var(--line);">Oct 26</td>
+              <td style="padding: 0.5rem; border-bottom: 1px solid var(--line);"><span class="badge badge-notyet">Not yet</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="meta" style="color: var(--muted);">Responsive: stacks to single column on narrow screens.</p>
+    </section>
+
+    <!-- Tabs -->
+    <section class="section" id="tabs">
+      <h2>Tabs</h2>
+      <div class="example">
+        <div role="tablist" style="display: flex; border-bottom: 1px solid var(--line);">
+          <button type="button" role="tab" aria-selected="true" aria-controls="panel-1" id="tab-1" style="padding: var(--space-sm) var(--space-md); border: none; background: none; border-bottom: 2px solid var(--verified); color: var(--verified); cursor: pointer;">For workers</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="panel-2" id="tab-2" style="padding: var(--space-sm) var(--space-md); border: none; background: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer;">For businesses</button>
+        </div>
+        <div id="panel-1" role="tabpanel" tabindex="0" style="padding: var(--space-md);">
+          Workers start with small, clearly defined tasks and build a record of reviewed work.
+        </div>
+        <div id="panel-2" role="tabpanel" tabindex="0" hidden style="padding: var(--space-md);">
+          Businesses define success before work starts and review submissions against agreed criteria.
+        </div>
+      </div>
+    </section>
+
+    <!-- Accordion -->
+    <section class="section" id="accordion">
+      <h2>Accordion (native details/summary)</h2>
+      <div class="example">
+        <details style="border-bottom: 1px solid var(--line); padding: 0.5rem 0;">
+          <summary style="cursor: pointer; font-weight: var(--fw-semibold);">What is AlgoStrat?</summary>
+          <p class="ink-muted" style="margin-top: 0.5rem; font-size: var(--text-sm);">AlgoStrat is where your work history is provable. Complete tasks, earn verifiable receipts.</p>
+        </details>
+        <details style="border-bottom: 1px solid var(--line); padding: 0.5rem 0;">
+          <summary style="cursor: pointer; font-weight: var(--fw-semibold);">How do receipts work?</summary>
+          <p class="ink-muted" style="margin-top: 0.5rem; font-size: var(--text-sm);">Each completed task issues a receipt with a verifiable hash. Receipts build your record over time.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Theme toggle
+    const toggle = document.getElementById('themeToggle');
+    const root = document.documentElement;
+    const saved = localStorage.getItem('theme');
+    if (saved) {
+      root.setAttribute('data-theme', saved);
+      toggle.textContent = saved === 'light' ? '☀️' : '🌙';
+    } else {
+      toggle.textContent = window.matchMedia('(prefers-color-scheme: light)').matches ? '☀️' : '🌙';
+    }
+
+    toggle.addEventListener('click', () => {
+      const current = root.getAttribute('data-theme');
+      const next = current === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', next);
+      toggle.textContent = next === 'light' ? '☀️' : '🌙';
+      try { localStorage.setItem('theme', next); } catch(e) {}
+    });
+
+    // Remove no-js class when JS is active
+    document.body.classList.remove('no-js');
+  </script>
+</body>
+</html>

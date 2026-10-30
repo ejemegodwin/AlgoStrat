@@ -15,14 +15,17 @@ FROM python:3.12-slim
 WORKDIR /app
 
 COPY --from=frontend-builder /app/frontend/dist /app/static
+COPY algostrat-site /app/marketing
 COPY --from=backend /app/backend /app/backend
 COPY --from=backend /usr/local/lib/python3.12 /usr/local/lib/python3.12
 COPY --from=backend /usr/local/bin/python /usr/local/bin/python
 COPY --from=backend /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+COPY --from=backend /usr/local/bin/alembic /usr/local/bin/alembic
 COPY alembic.ini ./
 
 ENV PYTHONPATH=/app/backend
 ENV STATIC_PATH=/app/static
+ENV MARKETING_PATH=/app/marketing
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8080

@@ -46,8 +46,12 @@ Whatever the host, these are the moving parts:
   freshly generated, then PERMANENT (rotating it invalidates every
   issued receipt's signature — ADR-021)
 
-### SPA (static site)
+### Public landing page and SPA
 
+- The public market-test landing page is served at `/` from `algostrat-site/`.
+- The authenticated marketplace SPA is served at `/app` from `frontend/dist`.
+- Docker copies both sites into the image; local API runs can set
+  `MARKETING_PATH=algostrat-site` and `STATIC_PATH=frontend/dist`.
 - Build: `npm install && npm run build` (publish dir: `frontend/dist`)
 - Env at build time: `VITE_API_URL` = the deployed API origin
   (see `frontend/.env.example`; `api.js` falls back to localhost without it)
@@ -55,6 +59,10 @@ Whatever the host, these are the moving parts:
 - After deploy, set the API's `CORS_ORIGINS` to the SPA's real origin —
   deploy order matters: API first with a temporary allowlist, then the
   SPA, then tighten `CORS_ORIGINS` to the final origin.
+
+The public landing page submits consented leads to `POST /waitlist`. The
+endpoint stores normalized email, audience, and region in the
+`waitlist_leads` table, rejects duplicate emails, and is rate-limited.
 
 ### Post-deploy smoke (before announcing it works)
 

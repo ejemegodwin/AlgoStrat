@@ -16,6 +16,7 @@ primary_region = "iad"
   PLATFORM_FEE_PERCENT = "0"
   PAYMENT_PROVIDER = "simulated"
   STATIC_PATH = "/app/static"
+  MARKETING_PATH = "/app/marketing"
 
 [deploy]
   # Run migrations before starting new instances; release fails if migrations break.

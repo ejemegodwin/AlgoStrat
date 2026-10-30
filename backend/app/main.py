@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
@@ -18,6 +19,7 @@ from app.routers import (
     payouts,
     profiles,
     receipts,
+    waitlist,
 )
 
 app = FastAPI(title="AlgoStrat API")
@@ -50,24 +52,35 @@ app.include_router(admin.router)
 app.include_router(payouts.router)
 app.include_router(placement.router)
 app.include_router(receipts.router)
+app.include_router(waitlist.router)
 
-# Serve the built SPA from the same origin in production (no CORS needed).
-# In local dev the static path is absent, so the mount is skipped silently.
+# Serve the public market-test page at the root and keep the authenticated
+# marketplace SPA under /app. Both are same-origin in production.
 _static_path = Path(os.getenv("STATIC_PATH", "app/static"))
 if _static_path.is_dir():
     app.mount(
-        "/",
+        "/app",
         StaticFiles(directory=str(_static_path), html=True),
-        name="static",
+        name="marketplace_app",
+    )
+
+_marketing_path = Path(os.getenv("MARKETING_PATH", "app/marketing"))
+if _marketing_path.is_dir():
+    app.mount(
+        "/marketing-assets",
+        StaticFiles(directory=str(_marketing_path / "assets")),
+        name="marketing_assets",
     )
 
 
 @app.get("/")
 def home():
-    return {
-        "message": "Welcome to AlgoStrat!",
-        "status": "running",
-    }
+    if _marketing_path.is_dir():
+        return FileResponse(
+            _marketing_path / "index.html",
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
+    return {"message": "Welcome to AlgoStrat!", "status": "running"}
 
 
 @app.get("/health/database")
