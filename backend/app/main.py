@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import check_database_connection
@@ -12,6 +14,7 @@ from app.routers import (
     contracts,
     jobs,
     ledger,
+    placement,
     payouts,
     profiles,
     receipts,
@@ -45,7 +48,18 @@ app.include_router(ledger.router)
 app.include_router(profiles.router)
 app.include_router(admin.router)
 app.include_router(payouts.router)
+app.include_router(placement.router)
 app.include_router(receipts.router)
+
+# Serve the built SPA from the same origin in production (no CORS needed).
+# In local dev the static path is absent, so the mount is skipped silently.
+_static_path = Path(os.getenv("STATIC_PATH", "app/static"))
+if _static_path.is_dir():
+    app.mount(
+        "/",
+        StaticFiles(directory=str(_static_path), html=True),
+        name="static",
+    )
 
 
 @app.get("/")

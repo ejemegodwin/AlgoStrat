@@ -692,3 +692,54 @@ class PayoutResponse(BaseModel):
     status: str
     provider_reference: str | None
     created_at: datetime
+
+
+# --- Placement Checks (Phase 5) ---
+
+class PlacementVariantResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    position: int
+    prompt: str
+    # Explicit, worker-facing criteria — what the attempt is judged against.
+    criteria: list[str] = []
+
+
+class PlacementCheckResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    skill: str
+    title: str
+    description: str
+    learning_resources: str | None
+    variants: list[PlacementVariantResponse] = []
+
+
+class PlacementAttemptStart(BaseModel):
+    """A worker begins an attempt by selecting a variant of a check.
+    If variant_id is omitted, the server picks the next non-back-to-back
+    variant (Phase 5 requirement: never serve the same variant back-to-back)."""
+    variant_id: int | None = None
+
+
+class PlacementAttemptSubmit(BaseModel):
+    submission: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=10, max_length=50_000),
+    ]
+
+
+class PlacementAttemptResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    check: PlacementCheckResponse
+    variant_id: int
+    status: str
+    submission: str | None
+    feedback: str | None
+    reviewed_at: datetime | None
+    submitted_at: datetime | None
+    created_at: datetime

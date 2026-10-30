@@ -3,11 +3,15 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { useAuth, CLIENT_SIDE, WORKER_SIDE } from "./auth";
 import RequireAuth from "./components/RequireAuth";
 import AdminDisputesPage from "./pages/AdminDisputesPage";
+import AdminPlacementQueue from "./pages/AdminPlacementQueue";
 import ContractDetailPage from "./pages/ContractDetailPage";
 import ContractsPage from "./pages/ContractsPage";
 import JobDetailPage from "./pages/JobDetailPage";
 import JobsPage from "./pages/JobsPage";
 import LoginPage from "./pages/LoginPage";
+import PlacementAttemptsPage from "./pages/PlacementAttemptsPage";
+import PlacementCheckPage from "./pages/PlacementCheckPage";
+import PlacementChecksPage from "./pages/PlacementChecksPage";
 import MyApplicationsPage from "./pages/MyApplicationsPage";
 import PayoutsPage from "./pages/PayoutsPage";
 import PostJobPage from "./pages/PostJobPage";
@@ -33,6 +37,11 @@ function Header() {
             <Link to="/contracts">Contracts</Link>
             <Link to="/payouts">Payouts</Link>
             {user.is_admin && <Link to="/admin/disputes">Disputes</Link>}
+            {user.is_admin && <Link to="/admin/placement">Placement queue</Link>}
+            {WORKER_SIDE.includes(user.account_type) && (
+              <Link to="/placement-attempts">My attempts</Link>
+            )}
+            <Link to="/placement-checks">Placement checks</Link>
             <span className="who">{user.full_name}</span>
             <button type="button" className="link" onClick={logout}>
               Log out
@@ -94,6 +103,24 @@ export default function App() {
           element={
             <RequireAuth>
               <AdminDisputesPage />
+            </RequireAuth>
+          }
+        />
+        <Route path="/placement-checks" element={<PlacementChecksPage />} />
+        <Route path="/placement-checks/:skill" element={<PlacementCheckPage />} />
+        <Route
+          path="/placement-attempts"
+          element={
+            <RequireAuth>
+              <PlacementAttemptsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/placement"
+          element={
+            <RequireAuth>
+              <AdminPlacementQueue />
             </RequireAuth>
           }
         />
